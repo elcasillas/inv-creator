@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2 } from "lucide-react";
@@ -25,7 +26,10 @@ interface InvoiceFormProps {
 }
 
 export function InvoiceForm({ mode, invoiceId, initialValues }: InvoiceFormProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
   const form = useForm<InvoiceFormValues>({
     resolver: zodResolver(invoiceSchema),
     defaultValues: initialValues ?? invoiceDefaults
@@ -67,17 +71,55 @@ export function InvoiceForm({ mode, invoiceId, initialValues }: InvoiceFormProps
 
   const onSubmit = form.handleSubmit((values) => {
     startTransition(async () => {
-      if (mode === "edit" && invoiceId) {
-        await updateInvoiceAction(invoiceId, values);
+      setSubmitError(null);
+      setSubmitSuccess(null);
+
+      const result =
+        mode === "edit" && invoiceId
+          ? await updateInvoiceAction(invoiceId, values)
+          : await createInvoiceAction(values);
+
+      if (!result.success) {
+        setSubmitError(result.message);
         return;
       }
 
-      await createInvoiceAction(values);
+      setSubmitSuccess(mode === "create" ? "Invoice saved. Redirecting..." : "Invoice updated. Redirecting...");
+      router.push(
+        mode === "create"
+          ? `/invoices/${result.invoiceId}?created=1`
+          : `/invoices/${result.invoiceId}?updated=1`
+      );
+      router.refresh();
     });
   });
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6">
+    <form id="invoice-form" onSubmit={onSubmit} className="space-y-6">
+      <Card className="p-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-slate-900">
+              {mode === "create" ? "Ready to save this invoice?" : "Ready to update this invoice?"}
+            </p>
+            <p className="text-sm text-slate-500">
+              Required fields are validated before anything is written to Supabase.
+            </p>
+          </div>
+          <Button
+            type="submit"
+            disabled={isPending}
+            className="bg-slate-900 text-white hover:bg-slate-800 sm:min-w-40"
+          >
+            {isPending ? "Saving..." : mode === "create" ? "Save Invoice" : "Update Invoice"}
+          </Button>
+        </div>
+        {submitSuccess ? (
+          <p className="mt-3 text-sm text-emerald-700">{submitSuccess}</p>
+        ) : null}
+        {submitError ? <p className="mt-3 text-sm text-rose-600">{submitError}</p> : null}
+      </Card>
+
       <Card className="p-6">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <FormField label="Invoice Number" error={form.formState.errors.invoiceNumber?.message}>

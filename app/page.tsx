@@ -28,7 +28,7 @@ export default async function DashboardPage() {
         <Card className="overflow-hidden">
           {!envReady ? (
             <div className="border-b border-slate-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
-              Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env.local` to load and save invoices.
+              Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in `.env.local` to load and save invoices.
             </div>
           ) : null}
           <InvoiceTable invoices={invoices} />

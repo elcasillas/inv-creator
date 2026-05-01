@@ -30,11 +30,16 @@ function AddressBlock({ title, lines }: { title: string; lines: Array<string | n
 }
 
 export default async function InvoiceDetailPage({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ created?: string; updated?: string }>;
 }) {
   const { id } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const wasCreated = resolvedSearchParams?.created === "1";
+  const wasUpdated = resolvedSearchParams?.updated === "1";
 
   try {
     const invoice = await getInvoiceById(id);
@@ -42,6 +47,16 @@ export default async function InvoiceDetailPage({
     return (
       <main className="min-h-screen bg-slate-50 px-4 py-8 print:bg-white sm:px-6 lg:px-8">
         <div className="mx-auto max-w-5xl space-y-6">
+          {wasCreated ? (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 print:hidden">
+              Invoice saved successfully.
+            </div>
+          ) : null}
+          {wasUpdated ? (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 print:hidden">
+              Invoice updated successfully.
+            </div>
+          ) : null}
           <div className="flex flex-col gap-4 print:hidden sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-2">
               <Link href="/" className="text-sm text-slate-500 hover:text-slate-900">

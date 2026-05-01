@@ -6,3 +6,4 @@ tsconfig.tsbuildinfo
 .codex
 .env.local
 .vercel
+supabase/.temp
