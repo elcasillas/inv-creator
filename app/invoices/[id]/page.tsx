@@ -3,7 +3,6 @@ import type { Route } from "next";
 import { notFound } from "next/navigation";
 import { DownloadPdfButton } from "@/components/invoices/download-pdf-button";
 import { InvoiceDocument } from "@/components/invoices/invoice-document";
-import { PrintButton } from "@/components/invoices/print-button";
 import { StatusBadge } from "@/components/invoices/status-badge";
 import { ButtonLink } from "@/components/ui/button";
 import { getInvoiceById } from "@/lib/supabase/queries";
@@ -54,7 +53,6 @@ export default async function InvoiceDetailPage({
                 targetId="invoice-detail-pdf"
                 invoiceNumber={invoice.invoice_number}
               />
-              <PrintButton />
               <ButtonLink
                 href={`/invoices/${invoice.id}/edit` as Route}
                 variant="primary"
