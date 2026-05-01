@@ -71,7 +71,13 @@ export function InvoiceForm({ mode, invoiceId, initialValues }: InvoiceFormProps
       mapFormValuesToDocument({
         ...invoiceDefaults,
         ...watchedValues,
-        items: watchedValues.items ?? invoiceDefaults.items
+        items:
+          watchedValues.items?.map((item, index) => ({
+            description: item?.description ?? invoiceDefaults.items[0].description,
+            quantity: item?.quantity ?? invoiceDefaults.items[0].quantity,
+            unitPrice: item?.unitPrice ?? invoiceDefaults.items[0].unitPrice,
+            lineTotal: item?.lineTotal ?? invoiceDefaults.items[0].lineTotal
+          })) ?? invoiceDefaults.items
       }),
     [watchedValues]
   );
