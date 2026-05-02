@@ -6,6 +6,7 @@ A minimal invoice creator built with Next.js 15, App Router, TypeScript, Tailwin
 
 - Dashboard for saved invoices
 - Company profile management with reusable sender details
+- Company-specific invoice numbering with configurable start numbers
 - Client profile management with reusable billing details
 - Supabase email/password login for user-scoped client profiles
 - Create, edit, view, print, and delete invoices
@@ -58,6 +59,7 @@ If you already created the tables and hit a Row Level Security error such as `ne
 - [supabase/migrations/20260501203500_enable_company_rls.sql](/mnt/c/Users/edcas/My%20Drive/AI/InvoiceCreator/supabase/migrations/20260501203500_enable_company_rls.sql:1)
 - [supabase/migrations/20260501213000_add_clients.sql](/mnt/c/Users/edcas/My%20Drive/AI/InvoiceCreator/supabase/migrations/20260501213000_add_clients.sql:1)
 - [supabase/migrations/20260501213500_enable_client_rls.sql](/mnt/c/Users/edcas/My%20Drive/AI/InvoiceCreator/supabase/migrations/20260501213500_enable_client_rls.sql:1)
+- [supabase/migrations/20260502090000_add_company_invoice_start_number.sql](/mnt/c/Users/edcas/My%20Drive/AI/InvoiceCreator/supabase/migrations/20260502090000_add_company_invoice_start_number.sql:1)
 
 4. Start local development:
 
@@ -87,7 +89,7 @@ The app uses two tables:
 - `invoices`
 - `invoice_items`
 
-Invoices reference a saved company profile through `company_id` and may also reference a saved client profile through `client_id`. Edits replace the associated line items for an invoice after updating the parent invoice. Deleting an invoice also deletes its line items through `on delete cascade`.
+Invoices reference a saved company profile through `company_id` and may also reference a saved client profile through `client_id`. Each company stores its own `invoice_start_number`, and new invoices use a company-specific numeric sequence. Edits replace the associated line items for an invoice after updating the parent invoice. Deleting an invoice also deletes its line items through `on delete cascade`.
 
 ## Auth
 

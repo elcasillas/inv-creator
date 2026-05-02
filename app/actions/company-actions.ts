@@ -13,6 +13,7 @@ function normalizeCompanyPayload(values: CompanyFormValues) {
 
   return {
     name: parsed.name,
+    invoice_start_number: parsed.invoiceStartNumber,
     address: parsed.address || null,
     city: parsed.city || null,
     state: parsed.state || null,

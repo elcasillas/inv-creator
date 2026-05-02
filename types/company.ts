@@ -1,6 +1,7 @@
 export interface CompanyRow {
   id: string;
   name: string;
+  invoice_start_number: number;
   address: string | null;
   city: string | null;
   state: string | null;

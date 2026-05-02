@@ -12,7 +12,11 @@ const itemSchema = z.object({
 export const invoiceSchema = z.object({
   companyId: z.string().uuid("Select a company"),
   clientId: z.string().uuid().optional().or(z.literal("")),
-  invoiceNumber: z.string().trim().min(1, "Invoice number is required"),
+  invoiceNumber: z
+    .string()
+    .trim()
+    .min(1, "Invoice number is required")
+    .regex(/^\d+$/, "Invoice number must be numeric"),
   invoiceDate: z.string().min(1, "Invoice date is required"),
   dueDate: z.string().optional().or(z.literal("")),
   status: statusEnum,

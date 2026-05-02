@@ -4,6 +4,7 @@ import { CompanyRow } from "@/types/company";
 export function mapCompanyToFormValues(company: CompanyRow): CompanyFormValues {
   return {
     name: company.name,
+    invoiceStartNumber: company.invoice_start_number,
     address: company.address ?? "",
     city: company.city ?? "",
     state: company.state ?? "",

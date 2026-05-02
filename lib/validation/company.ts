@@ -2,6 +2,10 @@ import { z } from "zod";
 
 export const companySchema = z.object({
   name: z.string().trim().min(1, "Company name is required"),
+  invoiceStartNumber: z.coerce
+    .number({ invalid_type_error: "Invoice start number is required" })
+    .int("Invoice start number must be a whole number")
+    .min(0, "Invoice start number cannot be negative"),
   address: z.string().trim().optional().or(z.literal("")),
   city: z.string().trim().optional().or(z.literal("")),
   state: z.string().trim().optional().or(z.literal("")),
@@ -18,6 +22,7 @@ export type CompanyFormValues = z.infer<typeof companySchema>;
 
 export const companyDefaults: CompanyFormValues = {
   name: "",
+  invoiceStartNumber: 1000,
   address: "",
   city: "",
   state: "",

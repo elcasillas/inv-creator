@@ -46,12 +46,48 @@ export function CompanyForm({
     });
   });
 
+  const invoiceStartNumberField = form.register("invoiceStartNumber", {
+    valueAsNumber: true
+  });
+
+  function handleWholeNumberInput(event: React.FormEvent<HTMLInputElement>) {
+    const nextValue = event.currentTarget.value.replace(/\D/g, "");
+    event.currentTarget.value = nextValue;
+    invoiceStartNumberField.onChange(event);
+  }
+
+  function handleWholeNumberKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (
+      ["Backspace", "Delete", "Tab", "ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
+    ) {
+      return;
+    }
+
+    if (!/^\d$/.test(event.key)) {
+      event.preventDefault();
+    }
+  }
+
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       <Card className="p-6">
         <div className="grid gap-4 md:grid-cols-2">
           <FormField label="Company Name" error={form.formState.errors.name?.message}>
             <Input {...form.register("name")} placeholder="Northwind Studio" />
+          </FormField>
+          <FormField
+            label="Invoice Start Number"
+            error={form.formState.errors.invoiceStartNumber?.message}
+          >
+            <Input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              placeholder="1000"
+              {...invoiceStartNumberField}
+              onInput={handleWholeNumberInput}
+              onKeyDown={handleWholeNumberKeyDown}
+            />
           </FormField>
           <FormField label="Email" error={form.formState.errors.email?.message}>
             <Input {...form.register("email")} type="email" placeholder="hello@company.com" />

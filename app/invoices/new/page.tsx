@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { InvoiceForm } from "@/components/invoices/invoice-form";
-import { getClients, getCompanies } from "@/lib/supabase/queries";
+import { getClients, getCompanies, getNextInvoiceNumbersByCompany } from "@/lib/supabase/queries";
 
 export const dynamic = "force-dynamic";
 
 export default async function NewInvoicePage() {
   const companies = await getCompanies();
   const clients = await getClients();
+  const nextInvoiceNumbers = await getNextInvoiceNumbersByCompany(companies);
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
@@ -20,7 +21,12 @@ export default async function NewInvoicePage() {
             Enter the invoice details and save them to Supabase.
           </p>
         </div>
-        <InvoiceForm mode="create" companies={companies} clients={clients} />
+        <InvoiceForm
+          mode="create"
+          companies={companies}
+          clients={clients}
+          nextInvoiceNumbers={nextInvoiceNumbers}
+        />
       </div>
     </main>
   );

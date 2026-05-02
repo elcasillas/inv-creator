@@ -19,6 +19,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { mapFormValuesToDocument } from "@/lib/utils/invoice-document";
 import { calculateInvoiceTotals, calculateLineTotal } from "@/lib/utils/invoice";
+import { getNextInvoiceNumberForCompany } from "@/lib/utils/invoice-number";
 import {
   invoiceDefaults,
   invoiceSchema,
@@ -31,9 +32,17 @@ interface InvoiceFormProps {
   initialValues?: InvoiceFormValues;
   companies: CompanyRow[];
   clients: ClientRow[];
+  nextInvoiceNumbers?: Record<string, string>;
 }
 
-export function InvoiceForm({ mode, invoiceId, initialValues, companies, clients }: InvoiceFormProps) {
+export function InvoiceForm({
+  mode,
+  invoiceId,
+  initialValues,
+  companies,
+  clients,
+  nextInvoiceNumbers = {}
+}: InvoiceFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -72,6 +81,16 @@ export function InvoiceForm({ mode, invoiceId, initialValues, companies, clients
     () => clients.find((client) => client.id === watchedClientId) ?? null,
     [clients, watchedClientId]
   );
+  const generatedInvoiceNumber = useMemo(() => {
+    if (!selectedCompany) {
+      return "";
+    }
+
+    return (
+      nextInvoiceNumbers[selectedCompany.id] ??
+      getNextInvoiceNumberForCompany(selectedCompany.invoice_start_number, [])
+    );
+  }, [nextInvoiceNumbers, selectedCompany]);
 
   const totals = useMemo(
     () =>
@@ -128,6 +147,17 @@ export function InvoiceForm({ mode, invoiceId, initialValues, companies, clients
     );
   }, [form, selectedClient]);
 
+  useEffect(() => {
+    if (mode !== "create") {
+      return;
+    }
+
+    form.setValue("invoiceNumber", generatedInvoiceNumber, {
+      shouldDirty: false,
+      shouldValidate: true
+    });
+  }, [form, generatedInvoiceNumber, mode]);
+
   const onSubmit = form.handleSubmit((values) => {
     startTransition(async () => {
       setSubmitError(null);
@@ -173,7 +203,7 @@ export function InvoiceForm({ mode, invoiceId, initialValues, companies, clients
             <Button
               type="submit"
               variant="primary"
-              disabled={isPending || companies.length === 0}
+              disabled={isPending || companies.length === 0 || (mode === "create" && !generatedInvoiceNumber)}
               className="sm:min-w-40"
             >
               {isPending ? "Saving..." : mode === "create" ? "Save Invoice" : "Update Invoice"}
@@ -227,9 +257,23 @@ export function InvoiceForm({ mode, invoiceId, initialValues, companies, clients
               </p>
             ) : null}
           </div>
-          <FormField label="Invoice Number" error={form.formState.errors.invoiceNumber?.message}>
-            <Input {...form.register("invoiceNumber")} placeholder="INV-1001" />
-          </FormField>
+          <div className="space-y-2">
+            <FormField label="Invoice Number" error={form.formState.errors.invoiceNumber?.message}>
+              <Input
+                {...form.register("invoiceNumber")}
+                readOnly={mode === "create"}
+                placeholder="Select a company to generate invoice number"
+                className={mode === "create" ? "bg-slate-50 text-slate-700" : undefined}
+              />
+            </FormField>
+            {mode === "create" ? (
+              <p className="text-xs text-slate-500">
+                {generatedInvoiceNumber
+                  ? `Next invoice number for this company: ${generatedInvoiceNumber}`
+                  : "Select a company to generate invoice number."}
+              </p>
+            ) : null}
+          </div>
           <FormField label="Invoice Date" error={form.formState.errors.invoiceDate?.message}>
             <Input type="date" {...form.register("invoiceDate")} />
           </FormField>

@@ -1,6 +1,7 @@
 import { getAuthenticatedUser } from "@/lib/supabase/auth";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
+import { getNextInvoiceNumberForCompany } from "@/lib/utils/invoice-number";
 import { CompanyRow } from "@/types/company";
 import { ClientRow } from "@/types/client";
 import { InvoiceItemRow, InvoiceWithItems, type InvoiceRow } from "@/types/invoice";
@@ -9,6 +10,7 @@ function normalizeCompany(row: Record<string, unknown>) {
   return {
     id: String(row.id ?? ""),
     name: String(row.name ?? ""),
+    invoice_start_number: Number(row.invoice_start_number ?? 1000),
     address: (row.address as string | null | undefined) ?? null,
     city: (row.city as string | null | undefined) ?? null,
     state: (row.state as string | null | undefined) ?? null,
@@ -135,6 +137,47 @@ export async function getCompanyById(id: string) {
   }
 
   return normalizeCompany(data as Record<string, unknown>);
+}
+
+export async function getNextInvoiceNumbersByCompany(companies: CompanyRow[]) {
+  if (!hasSupabaseEnv() || companies.length === 0) {
+    return {} as Record<string, string>;
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const companyIds = companies.map((company) => company.id);
+  const { data, error } = await supabase
+    .from("invoices")
+    .select("company_id, invoice_number")
+    .in("company_id", companyIds);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const invoiceNumbersByCompany = new Map<string, string[]>();
+
+  for (const row of (data ?? []) as Array<Record<string, unknown>>) {
+    const companyId = String(row.company_id ?? "");
+
+    if (!companyId) {
+      continue;
+    }
+
+    const existing = invoiceNumbersByCompany.get(companyId) ?? [];
+    existing.push(String(row.invoice_number ?? ""));
+    invoiceNumbersByCompany.set(companyId, existing);
+  }
+
+  return Object.fromEntries(
+    companies.map((company) => [
+      company.id,
+      getNextInvoiceNumberForCompany(
+        company.invoice_start_number,
+        invoiceNumbersByCompany.get(company.id) ?? []
+      )
+    ])
+  );
 }
 
 export async function getClients() {

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { calculateInvoiceTotals, calculateLineTotal } from "@/lib/utils/invoice";
+import { getNextInvoiceNumberForCompany } from "@/lib/utils/invoice-number";
 import { invoiceSchema, type InvoiceFormValues } from "@/lib/validation/invoice";
 
 type InvoiceActionResult =
@@ -59,6 +60,26 @@ function normalizePayload(values: InvoiceFormValues) {
   };
 }
 
+async function generateNextInvoiceNumber(
+  companyId: string,
+  invoiceStartNumber: number
+) {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("invoices")
+    .select("invoice_number")
+    .eq("company_id", companyId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return getNextInvoiceNumberForCompany(
+    invoiceStartNumber,
+    ((data ?? []) as Array<{ invoice_number: string | null }>).map((row) => row.invoice_number)
+  );
+}
+
 export async function createInvoiceAction(values: InvoiceFormValues): Promise<InvoiceActionResult> {
   try {
     const supabase = await createServerSupabaseClient();
@@ -72,6 +93,8 @@ export async function createInvoiceAction(values: InvoiceFormValues): Promise<In
     if (companyError) {
       return { success: false, message: companyError.message };
     }
+
+    let invoiceId: string | null = null;
 
     payload.invoice.company_name = company.name;
     payload.invoice.company_email = company.email;
@@ -105,32 +128,54 @@ export async function createInvoiceAction(values: InvoiceFormValues): Promise<In
         .join("\n");
     }
 
-    const { data: invoice, error: invoiceError } = await supabase
-      .from("invoices")
-      .insert(payload.invoice)
-      .select("id")
-      .single();
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      payload.invoice.invoice_number = await generateNextInvoiceNumber(
+        payload.invoice.company_id,
+        Number(company.invoice_start_number ?? 1000)
+      );
 
-    if (invoiceError) {
+      const { data: invoice, error: invoiceError } = await supabase
+        .from("invoices")
+        .insert(payload.invoice)
+        .select("id")
+        .single();
+
+      if (!invoiceError) {
+        invoiceId = invoice.id;
+        break;
+      }
+
+      if (invoiceError.code === "23505") {
+        continue;
+      }
+
       return { success: false, message: invoiceError.message };
+    }
+
+    if (!invoiceId) {
+      return {
+        success: false,
+        message: "Failed to generate a unique invoice number for this company. Please try again."
+      };
     }
 
     const { error: itemsError } = await supabase.from("invoice_items").insert(
       payload.items.map((item) => ({
-        invoice_id: invoice.id,
+        invoice_id: invoiceId,
         ...item
       }))
     );
 
     if (itemsError) {
-      await supabase.from("invoices").delete().eq("id", invoice.id);
+      await supabase.from("invoices").delete().eq("id", invoiceId);
       return { success: false, message: itemsError.message };
     }
 
     revalidatePath("/");
-    revalidatePath(`/invoices/${invoice.id}`);
+    revalidatePath(`/invoices/${invoiceId}`);
+    revalidatePath("/invoices/new");
 
-    return { success: true, invoiceId: invoice.id };
+    return { success: true, invoiceId };
   } catch (error) {
     return {
       success: false,
@@ -191,6 +236,10 @@ export async function updateInvoiceAction(
     const { error: invoiceError } = await supabase.from("invoices").update(payload.invoice).eq("id", id);
 
     if (invoiceError) {
+      if (invoiceError.code === "23505") {
+        return { success: false, message: "Invoice number must be unique for each company." };
+      }
+
       return { success: false, message: invoiceError.message };
     }
 
