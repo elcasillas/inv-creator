@@ -9,29 +9,29 @@ const navItems = [
   { href: "/companies", label: "Companies" }
 ] as const satisfies ReadonlyArray<{ href: Route; label: string }>;
 
-export async function SiteHeader() {
+export async function TopNav() {
   const { user } = await getAuthenticatedUser();
 
   return (
-    <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        <Link href="/" className="text-lg font-semibold tracking-tight text-slate-950">
+    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        <Link href="/" className="shrink-0 text-base font-semibold tracking-tight text-slate-950 sm:text-lg">
           Invoice Creator
         </Link>
-        <nav className="flex items-center gap-6 text-sm text-slate-600">
+        <nav className="flex items-center gap-4 text-xs text-slate-600 sm:gap-6 sm:text-sm">
           {navItems.map((item) => (
-            <Link key={item.href} href={item.href} className="hover:text-slate-950">
+            <Link key={item.href} href={item.href} className="whitespace-nowrap hover:text-slate-950">
               {item.label}
             </Link>
           ))}
           {user ? (
             <form action={logout}>
-              <button className="hover:text-slate-950" type="submit">
+              <button className="whitespace-nowrap hover:text-slate-950" type="submit">
                 Log out
               </button>
             </form>
           ) : (
-            <Link href="/login" className="hover:text-slate-950">
+            <Link href="/login" className="whitespace-nowrap hover:text-slate-950">
               Log in
             </Link>
           )}
