@@ -4,6 +4,7 @@ import { InvoiceWithItems } from "@/types/invoice";
 export function mapInvoiceToFormValues(invoice: InvoiceWithItems): InvoiceFormValues {
   return {
     companyId: invoice.company_id ?? "",
+    clientId: invoice.client_id ?? "",
     invoiceNumber: invoice.invoice_number,
     invoiceDate: invoice.invoice_date,
     dueDate: invoice.due_date ?? "",

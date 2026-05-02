@@ -3,6 +3,7 @@ import type { Route } from "next";
 
 const navItems = [
   { href: "/", label: "Invoices" },
+  { href: "/clients", label: "Clients" },
   { href: "/companies", label: "Companies" }
 ] as const satisfies ReadonlyArray<{ href: Route; label: string }>;
 

@@ -33,6 +33,7 @@ function normalizePayload(values: InvoiceFormValues) {
   return {
     invoice: {
       company_id: parsed.companyId,
+      client_id: parsed.clientId || null,
       invoice_number: parsed.invoiceNumber,
       invoice_date: parsed.invoiceDate,
       due_date: parsed.dueDate || null,
@@ -81,6 +82,28 @@ export async function createInvoiceAction(values: InvoiceFormValues): Promise<In
     ]
       .filter(Boolean)
       .join("\n");
+
+    if (payload.invoice.client_id) {
+      const { data: client, error: clientError } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("id", payload.invoice.client_id)
+        .single();
+
+      if (clientError) {
+        return { success: false, message: clientError.message };
+      }
+
+      payload.invoice.client_name = client.name;
+      payload.invoice.client_email = client.email;
+      payload.invoice.client_address = [
+        client.billing_address,
+        [client.city, client.state, client.postal_code].filter(Boolean).join(", "),
+        client.country
+      ]
+        .filter(Boolean)
+        .join("\n");
+    }
 
     const { data: invoice, error: invoiceError } = await supabase
       .from("invoices")
@@ -142,6 +165,28 @@ export async function updateInvoiceAction(
     ]
       .filter(Boolean)
       .join("\n");
+
+    if (payload.invoice.client_id) {
+      const { data: client, error: clientError } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("id", payload.invoice.client_id)
+        .single();
+
+      if (clientError) {
+        return { success: false, message: clientError.message };
+      }
+
+      payload.invoice.client_name = client.name;
+      payload.invoice.client_email = client.email;
+      payload.invoice.client_address = [
+        client.billing_address,
+        [client.city, client.state, client.postal_code].filter(Boolean).join(", "),
+        client.country
+      ]
+        .filter(Boolean)
+        .join("\n");
+    }
 
     const { error: invoiceError } = await supabase.from("invoices").update(payload.invoice).eq("id", id);
 

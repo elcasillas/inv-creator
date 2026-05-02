@@ -78,7 +78,7 @@ export function InvoiceDocument({
         <div className="mt-14 grid gap-10 lg:grid-cols-[minmax(0,1fr)_280px]">
           <AddressBlock
             title="Bill To"
-            lines={[invoice.clientName, invoice.clientEmail, invoice.clientAddress]}
+            lines={[invoice.clientName, invoice.clientEmail, invoice.clientPhone, invoice.clientAddress]}
           />
 
           <div className="space-y-6 lg:text-right">

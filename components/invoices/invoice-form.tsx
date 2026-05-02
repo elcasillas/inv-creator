@@ -7,6 +7,7 @@ import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash2 } from "lucide-react";
 import { CompanyRow } from "@/types/company";
+import { ClientRow } from "@/types/client";
 import { createInvoiceAction, updateInvoiceAction } from "@/app/actions/invoice-actions";
 import { DownloadPdfButton } from "@/components/invoices/download-pdf-button";
 import { InvoiceDocument } from "@/components/invoices/invoice-document";
@@ -29,9 +30,10 @@ interface InvoiceFormProps {
   invoiceId?: string;
   initialValues?: InvoiceFormValues;
   companies: CompanyRow[];
+  clients: ClientRow[];
 }
 
-export function InvoiceForm({ mode, invoiceId, initialValues, companies }: InvoiceFormProps) {
+export function InvoiceForm({ mode, invoiceId, initialValues, companies, clients }: InvoiceFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -58,9 +60,17 @@ export function InvoiceForm({ mode, invoiceId, initialValues, companies }: Invoi
     control: form.control,
     name: "companyId"
   });
+  const watchedClientId = useWatch({
+    control: form.control,
+    name: "clientId"
+  });
   const selectedCompany = useMemo(
     () => companies.find((company) => company.id === watchedCompanyId) ?? null,
     [companies, watchedCompanyId]
+  );
+  const selectedClient = useMemo(
+    () => clients.find((client) => client.id === watchedClientId) ?? null,
+    [clients, watchedClientId]
   );
 
   const totals = useMemo(
@@ -89,8 +99,8 @@ export function InvoiceForm({ mode, invoiceId, initialValues, companies }: Invoi
             unitPrice: item?.unitPrice ?? invoiceDefaults.items[0].unitPrice,
             lineTotal: item?.lineTotal ?? invoiceDefaults.items[0].lineTotal
           })) ?? invoiceDefaults.items
-      }, selectedCompany),
-    [selectedCompany, watchedValues]
+      }, selectedCompany, selectedClient),
+    [selectedCompany, selectedClient, watchedValues]
   );
 
   useEffect(() => {
@@ -98,6 +108,25 @@ export function InvoiceForm({ mode, invoiceId, initialValues, companies }: Invoi
     form.setValue("taxAmount", totals.taxAmount);
     form.setValue("total", totals.total);
   }, [form, totals]);
+
+  useEffect(() => {
+    if (!selectedClient) {
+      return;
+    }
+
+    form.setValue("clientName", selectedClient.name);
+    form.setValue("clientEmail", selectedClient.email ?? "");
+    form.setValue(
+      "clientAddress",
+      [
+        selectedClient.billing_address,
+        [selectedClient.city, selectedClient.state, selectedClient.postal_code].filter(Boolean).join(", "),
+        selectedClient.country
+      ]
+        .filter(Boolean)
+        .join("\n")
+    );
+  }, [form, selectedClient]);
 
   const onSubmit = form.handleSubmit((values) => {
     startTransition(async () => {
@@ -177,6 +206,16 @@ export function InvoiceForm({ mode, invoiceId, initialValues, companies }: Invoi
               ))}
             </Select>
           </FormField>
+          <FormField label="Client Profile">
+            <Select {...form.register("clientId")}>
+              <option value="">No saved client selected</option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))}
+            </Select>
+          </FormField>
           <FormField label="Invoice Number" error={form.formState.errors.invoiceNumber?.message}>
             <Input {...form.register("invoiceNumber")} placeholder="INV-1001" />
           </FormField>
@@ -214,10 +253,30 @@ export function InvoiceForm({ mode, invoiceId, initialValues, companies }: Invoi
         </Card>
 
         <Card className="p-6">
-          <h2 className="text-lg font-semibold text-slate-950">Selected Company</h2>
+          <h2 className="text-lg font-semibold text-slate-950">Selected Profiles</h2>
           <div className="mt-4 space-y-3 text-sm text-slate-700">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Client</p>
+              {selectedClient ? (
+                <div className="mt-3 space-y-1">
+                  <p className="font-medium text-slate-950">{selectedClient.name}</p>
+                  {selectedClient.email ? <p>{selectedClient.email}</p> : null}
+                  {selectedClient.phone ? <p>{selectedClient.phone}</p> : null}
+                  {selectedClient.billing_address ? <p>{selectedClient.billing_address}</p> : null}
+                  {[selectedClient.city, selectedClient.state, selectedClient.postal_code].filter(Boolean).length ? (
+                    <p>{[selectedClient.city, selectedClient.state, selectedClient.postal_code].filter(Boolean).join(", ")}</p>
+                  ) : null}
+                  {selectedClient.country ? <p>{selectedClient.country}</p> : null}
+                </div>
+              ) : (
+                <p className="mt-3 text-slate-500">Optional: select a saved client profile to prefill billing details.</p>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Company</p>
             {selectedCompany ? (
-              <>
+              <div className="mt-3 space-y-1">
                 <p className="font-medium text-slate-950">{selectedCompany.name}</p>
                 {selectedCompany.email ? <p>{selectedCompany.email}</p> : null}
                 {selectedCompany.phone ? <p>{selectedCompany.phone}</p> : null}
@@ -242,10 +301,11 @@ export function InvoiceForm({ mode, invoiceId, initialValues, companies }: Invoi
                     className="max-h-16 w-auto rounded-lg border border-slate-200 object-contain p-2"
                   />
                 ) : null}
-              </>
+              </div>
             ) : (
-              <p className="text-slate-500">Select a company to populate the invoice header.</p>
+              <p className="mt-3 text-slate-500">Select a company to populate the invoice header.</p>
             )}
+            </div>
           </div>
         </Card>
       </div>

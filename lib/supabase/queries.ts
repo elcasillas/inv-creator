@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { hasSupabaseEnv } from "@/lib/supabase/env";
 import { CompanyRow } from "@/types/company";
+import { ClientRow } from "@/types/client";
 import { InvoiceItemRow, InvoiceWithItems, type InvoiceRow } from "@/types/invoice";
 
 function normalizeCompany(row: Record<string, unknown>) {
@@ -20,6 +21,25 @@ function normalizeCompany(row: Record<string, unknown>) {
     created_at: String(row.created_at ?? ""),
     updated_at: String(row.updated_at ?? "")
   } satisfies CompanyRow;
+}
+
+function normalizeClient(row: Record<string, unknown>) {
+  return {
+    id: String(row.id ?? ""),
+    user_id: String(row.user_id ?? ""),
+    name: String(row.name ?? ""),
+    email: (row.email as string | null | undefined) ?? null,
+    phone: (row.phone as string | null | undefined) ?? null,
+    billing_address: (row.billing_address as string | null | undefined) ?? null,
+    city: (row.city as string | null | undefined) ?? null,
+    state: (row.state as string | null | undefined) ?? null,
+    postal_code: (row.postal_code as string | null | undefined) ?? null,
+    country: (row.country as string | null | undefined) ?? null,
+    tax_id: (row.tax_id as string | null | undefined) ?? null,
+    notes: (row.notes as string | null | undefined) ?? null,
+    created_at: String(row.created_at ?? ""),
+    updated_at: String(row.updated_at ?? "")
+  } satisfies ClientRow;
 }
 
 function normalizeInvoice(row: Record<string, unknown>) {
@@ -49,7 +69,7 @@ export async function getInvoices() {
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
     .from("invoices")
-    .select("*, company:companies(*)")
+    .select("*, company:companies(*), client:clients(*)")
     .order("invoice_date", { ascending: false })
     .order("created_at", { ascending: false });
 
@@ -68,7 +88,7 @@ export async function getInvoiceById(id: string) {
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
     .from("invoices")
-    .select("*, invoice_items(*), company:companies(*)")
+    .select("*, invoice_items(*), company:companies(*), client:clients(*)")
     .eq("id", id)
     .single();
 
@@ -79,6 +99,7 @@ export async function getInvoiceById(id: string) {
   return {
     ...normalizeInvoice(data as Record<string, unknown>),
     company: data.company ? normalizeCompany(data.company as Record<string, unknown>) : null,
+    client: data.client ? normalizeClient(data.client as Record<string, unknown>) : null,
     invoice_items: ((data.invoice_items as Record<string, unknown>[] | null) ?? []).map((item) =>
       normalizeInvoiceItem(item)
     )
@@ -113,4 +134,34 @@ export async function getCompanyById(id: string) {
   }
 
   return normalizeCompany(data as Record<string, unknown>);
+}
+
+export async function getClients() {
+  if (!hasSupabaseEnv()) {
+    return [];
+  }
+
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase.from("clients").select("*").order("name");
+
+  if (error) {
+    return [];
+  }
+
+  return ((data ?? []) as Record<string, unknown>[]).map((row) => normalizeClient(row));
+}
+
+export async function getClientById(id: string) {
+  if (!hasSupabaseEnv()) {
+    throw new Error("Supabase environment variables are not configured.");
+  }
+
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase.from("clients").select("*").eq("id", id).single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return normalizeClient(data as Record<string, unknown>);
 }

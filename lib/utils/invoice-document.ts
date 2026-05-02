@@ -1,19 +1,31 @@
 import { InvoiceFormValues } from "@/lib/validation/invoice";
 import { calculateInvoiceTotals, calculateLineTotal } from "@/lib/utils/invoice";
 import { CompanyRow } from "@/types/company";
+import { ClientRow } from "@/types/client";
 import { InvoiceWithItems } from "@/types/invoice";
 import { InvoiceDocumentData } from "@/types/invoice-document";
 
 export function mapInvoiceToDocument(invoice: InvoiceWithItems): InvoiceDocumentData {
   return {
     company: invoice.company,
+    client: invoice.client,
     invoiceNumber: invoice.invoice_number,
     invoiceDate: invoice.invoice_date,
     dueDate: invoice.due_date,
     status: invoice.status,
-    clientName: invoice.client_name,
-    clientEmail: invoice.client_email,
-    clientAddress: invoice.client_address,
+    clientName: invoice.client?.name ?? invoice.client_name,
+    clientEmail: invoice.client?.email ?? invoice.client_email,
+    clientPhone: invoice.client?.phone ?? null,
+    clientAddress:
+      invoice.client
+        ? [
+            invoice.client.billing_address,
+            [invoice.client.city, invoice.client.state, invoice.client.postal_code].filter(Boolean).join(", "),
+            invoice.client.country
+          ]
+            .filter(Boolean)
+            .join("\n")
+        : invoice.client_address,
     companyName: invoice.company?.name ?? invoice.company_name,
     companyEmail: invoice.company?.email ?? invoice.company_email,
     companyAddress:
@@ -43,7 +55,8 @@ export function mapInvoiceToDocument(invoice: InvoiceWithItems): InvoiceDocument
 
 export function mapFormValuesToDocument(
   values: InvoiceFormValues,
-  selectedCompany?: CompanyRow | null
+  selectedCompany?: CompanyRow | null,
+  selectedClient?: ClientRow | null
 ): InvoiceDocumentData {
   const totals = calculateInvoiceTotals(values);
   const derivedCompanyAddress = selectedCompany
@@ -58,13 +71,24 @@ export function mapFormValuesToDocument(
 
   return {
     company: selectedCompany ?? null,
+    client: selectedClient ?? null,
     invoiceNumber: values.invoiceNumber || "DRAFT",
     invoiceDate: values.invoiceDate,
     dueDate: values.dueDate || null,
     status: values.status,
-    clientName: values.clientName || "Client name",
-    clientEmail: values.clientEmail || null,
-    clientAddress: values.clientAddress || null,
+    clientName: selectedClient?.name ?? values.clientName || "Client name",
+    clientEmail: selectedClient?.email ?? values.clientEmail ?? null,
+    clientPhone: selectedClient?.phone ?? null,
+    clientAddress:
+      selectedClient
+        ? [
+            selectedClient.billing_address,
+            [selectedClient.city, selectedClient.state, selectedClient.postal_code].filter(Boolean).join(", "),
+            selectedClient.country
+          ]
+            .filter(Boolean)
+            .join("\n")
+        : values.clientAddress ?? null,
     companyName: selectedCompany?.name ?? values.companyName ?? null,
     companyEmail: selectedCompany?.email ?? values.companyEmail ?? null,
     companyAddress: derivedCompanyAddress ?? values.companyAddress ?? null,

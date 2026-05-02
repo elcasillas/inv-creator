@@ -1,4 +1,5 @@
 import { CompanyRow } from "@/types/company";
+import { ClientRow } from "@/types/client";
 
 export interface InvoiceDocumentItem {
   id: string;
@@ -10,12 +11,14 @@ export interface InvoiceDocumentItem {
 
 export interface InvoiceDocumentData {
   company: CompanyRow | null;
+  client: ClientRow | null;
   invoiceNumber: string;
   invoiceDate: string;
   dueDate: string | null;
   status: string;
   clientName: string;
   clientEmail: string | null;
+  clientPhone: string | null;
   clientAddress: string | null;
   companyName: string | null;
   companyEmail: string | null;

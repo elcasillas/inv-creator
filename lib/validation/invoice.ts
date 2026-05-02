@@ -11,6 +11,7 @@ const itemSchema = z.object({
 
 export const invoiceSchema = z.object({
   companyId: z.string().uuid("Select a company"),
+  clientId: z.string().uuid().optional().or(z.literal("")),
   invoiceNumber: z.string().trim().min(1, "Invoice number is required"),
   invoiceDate: z.string().min(1, "Invoice date is required"),
   dueDate: z.string().optional().or(z.literal("")),
@@ -33,6 +34,7 @@ export type InvoiceFormValues = z.infer<typeof invoiceSchema>;
 
 export const invoiceDefaults: InvoiceFormValues = {
   companyId: "",
+  clientId: "",
   invoiceNumber: "",
   invoiceDate: new Date().toISOString().slice(0, 10),
   dueDate: "",
