@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Route } from "next";
 import { logout } from "@/app/login/actions";
-import { getAuthenticatedUser } from "@/lib/supabase/auth";
+import { getCurrentProfile } from "@/lib/supabase/auth";
 
 const navItems = [
   { href: "/", label: "Invoices" },
@@ -11,7 +11,16 @@ const navItems = [
 ] as const satisfies ReadonlyArray<{ href: Route; label: string }>;
 
 export async function TopNav() {
-  const { user } = await getAuthenticatedUser();
+  const { user, profile } = await getCurrentProfile();
+
+  if (!user) {
+    return null;
+  }
+
+  const visibleNavItems =
+    profile?.role === "admin" && !profile.disabled_at
+      ? [...navItems, { href: "/admin/users", label: "Admin Users" } as const]
+      : navItems;
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm">
@@ -31,22 +40,16 @@ export async function TopNav() {
           <span>Invoice Creator</span>
         </Link>
         <nav className="flex items-center gap-4 text-xs text-slate-600 sm:gap-6 sm:text-sm">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <Link key={item.href} href={item.href} className="whitespace-nowrap hover:text-slate-950">
               {item.label}
             </Link>
           ))}
-          {user ? (
-            <form action={logout}>
-              <button className="whitespace-nowrap hover:text-slate-950" type="submit">
-                Log out
-              </button>
-            </form>
-          ) : (
-            <Link href="/login" className="whitespace-nowrap hover:text-slate-950">
-              Log in
-            </Link>
-          )}
+          <form action={logout}>
+            <button className="whitespace-nowrap hover:text-slate-950" type="submit">
+              Log out
+            </button>
+          </form>
         </nav>
       </div>
     </header>

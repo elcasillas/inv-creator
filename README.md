@@ -82,26 +82,38 @@ If the environment variables are not set yet, the dashboard still loads and show
 
 ## Database Notes
 
-The app uses two tables:
+The app uses these main tables:
 
 - `clients`
 - `companies`
 - `invoices`
 - `invoice_items`
+- `profiles`
 
 Invoices reference a saved company profile through `company_id` and may also reference a saved client profile through `client_id`. Each company stores its own `invoice_start_number`, and new invoices use a company-specific numeric sequence. Edits replace the associated line items for an invoice after updating the parent invoice. Deleting an invoice also deletes its line items through `on delete cascade`.
 
 ## Auth
 
-The app now includes a minimal Supabase Auth flow for reusable client profiles:
+The app uses Supabase Auth with admin-managed accounts:
 
-- Visit `/login` to sign up or log in with email and password
-- Middleware and SSR helpers keep the Supabase session available to server components and server actions
-- Client profile CRUD is user-scoped through RLS and requires a signed-in user
+- Visit `/login` to log in with email and password
+- Public signup is intentionally not exposed
+- Admin users can manage accounts at `/admin/users`
+- User creation and auth admin mutations run server-side with `SUPABASE_SERVICE_ROLE_KEY`
+- Profiles live in `public.profiles` and link `profiles.id` to `auth.users.id`
+- Roles are `admin` and `user`
 
-Because this version still allows invoice creation and company management without sign-in, the included RLS policies currently allow `anon` and `authenticated` access to the `companies`, `invoices`, and `invoice_items` tables. If you later add per-user ownership for invoices and companies, tighten those policies to user-scoped rules too.
+Set these environment variables locally:
 
-The `clients` table is already user-scoped. Its policies allow authenticated users to manage only their own client records via `user_id = auth.uid()`. That means reusable client profiles require a real Supabase auth session, while manual invoice client entry still works without one.
+```bash
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+The `profiles` table is protected with RLS. Users can read their own profile, while admins can read and manage all profiles. The `clients` table remains user-scoped through `user_id = auth.uid()`.
+
+For the first admin, create or update one Supabase Auth user from the Supabase dashboard and set that user's `public.profiles.role` to `admin`. After that, use `/admin/users` for account management.
 
 ## Local Development Command
 

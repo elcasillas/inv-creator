@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { getSupabaseEnv } from "@/lib/supabase/env";
+import { getSupabaseEnv, getSupabaseServiceEnv } from "@/lib/supabase/env";
 
 export async function createServerSupabaseClient() {
   const { url, publishableKey } = getSupabaseEnv();
@@ -20,6 +21,17 @@ export async function createServerSupabaseClient() {
           // Server Components can't always write cookies; middleware handles refresh persistence.
         }
       }
+    }
+  });
+}
+
+export function createServiceRoleSupabaseClient() {
+  const { url, serviceRoleKey } = getSupabaseServiceEnv();
+
+  return createClient(url, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
     }
   });
 }

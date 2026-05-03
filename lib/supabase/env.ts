@@ -5,6 +5,10 @@ export function hasSupabaseEnv() {
   );
 }
 
+export function hasSupabaseServiceEnv() {
+  return hasSupabaseEnv() && Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
 export function getSupabaseEnv() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publishableKey =
@@ -17,4 +21,15 @@ export function getSupabaseEnv() {
   }
 
   return { url, publishableKey };
+}
+
+export function getSupabaseServiceEnv() {
+  const { url } = getSupabaseEnv();
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!serviceRoleKey) {
+    throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY. Server-side admin user management requires it.");
+  }
+
+  return { url, serviceRoleKey };
 }

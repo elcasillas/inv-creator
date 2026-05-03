@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { login, signup } from "@/app/login/actions";
+import { login } from "@/app/login/actions";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
@@ -18,9 +19,7 @@ export default async function LoginPage({
             Back to app
           </Link>
           <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Sign in</h1>
-          <p className="text-sm text-slate-500">
-            Sign in to manage reusable client profiles under your own account.
-          </p>
+          <p className="text-sm text-slate-500">Sign in with the account provided by your admin.</p>
         </div>
 
         <Card className="p-6">
@@ -39,18 +38,9 @@ export default async function LoginPage({
               </p>
             ) : null}
             <div className="flex flex-col gap-3 sm:flex-row">
-              <button
-                formAction={login}
-                className="inline-flex items-center justify-center rounded-lg border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
-              >
+              <Button formAction={login} variant="primary">
                 Log in
-              </button>
-              <button
-                formAction={signup}
-                className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-slate-100"
-              >
-                Sign up
-              </button>
+              </Button>
             </div>
           </form>
         </Card>

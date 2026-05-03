@@ -23,7 +23,26 @@ export async function updateSupabaseSession(request: NextRequest) {
     }
   });
 
-  await supabase.auth.getUser();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  const isLoginRoute = request.nextUrl.pathname === "/login";
+
+  if (!user && !isLoginRoute) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    loginUrl.searchParams.set("message", "Please log in to continue.");
+    loginUrl.searchParams.set("redirectedFrom", request.nextUrl.pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  if (user && isLoginRoute) {
+    const dashboardUrl = request.nextUrl.clone();
+    dashboardUrl.pathname = "/";
+    dashboardUrl.search = "";
+    return NextResponse.redirect(dashboardUrl);
+  }
 
   return response;
 }
