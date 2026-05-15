@@ -1,5 +1,5 @@
 import { queryFirst, queryRows } from "@/lib/d1/client";
-import { hasD1Env } from "@/lib/d1/env";
+import { hasD1Access } from "@/lib/d1/env";
 import { getNextInvoiceNumberForCompany } from "@/lib/utils/invoice-number";
 import { CompanyRow } from "@/types/company";
 import { ClientRow } from "@/types/client";
@@ -64,7 +64,7 @@ function normalizeInvoiceItem(row: Record<string, unknown>) {
 }
 
 export async function getInvoices() {
-  if (!hasD1Env()) {
+  if (!(await hasD1Access())) {
     return [];
   }
 
@@ -75,7 +75,7 @@ export async function getInvoices() {
 }
 
 export async function getInvoiceById(id: string) {
-  if (!hasD1Env()) {
+  if (!(await hasD1Access())) {
     throw new Error("Cloudflare D1 is not configured.");
   }
 
@@ -107,7 +107,7 @@ export async function getInvoiceById(id: string) {
 }
 
 export async function getCompanies() {
-  if (!hasD1Env()) {
+  if (!(await hasD1Access())) {
     return [];
   }
 
@@ -116,7 +116,7 @@ export async function getCompanies() {
 }
 
 export async function getCompanyById(id: string) {
-  if (!hasD1Env()) {
+  if (!(await hasD1Access())) {
     throw new Error("Cloudflare D1 is not configured.");
   }
 
@@ -130,7 +130,7 @@ export async function getCompanyById(id: string) {
 }
 
 export async function getNextInvoiceNumbersByCompany(companies: CompanyRow[]) {
-  if (!hasD1Env() || companies.length === 0) {
+  if (!(await hasD1Access()) || companies.length === 0) {
     return {} as Record<string, string>;
   }
 
@@ -166,7 +166,7 @@ export async function getNextInvoiceNumbersByCompany(companies: CompanyRow[]) {
 }
 
 export async function getClients() {
-  if (!hasD1Env()) {
+  if (!(await hasD1Access())) {
     return [];
   }
 
@@ -175,7 +175,7 @@ export async function getClients() {
 }
 
 export async function getClientById(id: string) {
-  if (!hasD1Env()) {
+  if (!(await hasD1Access())) {
     throw new Error("Cloudflare D1 is not configured.");
   }
 
@@ -189,5 +189,5 @@ export async function getClientById(id: string) {
 }
 
 export async function canManageClients() {
-  return hasD1Env();
+  return hasD1Access();
 }

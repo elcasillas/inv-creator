@@ -1,7 +1,7 @@
 import { InvoiceTable } from "@/components/invoices/invoice-table";
 import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { hasD1Env } from "@/lib/d1/env";
+import { hasD1Access } from "@/lib/d1/env";
 import { getInvoices } from "@/lib/d1/queries";
 import { type InvoiceRow } from "@/types/invoice";
 
@@ -47,7 +47,7 @@ function groupInvoicesByCompany(invoices: InvoiceRow[]) {
 }
 
 export default async function DashboardPage() {
-  const envReady = hasD1Env();
+  const envReady = await hasD1Access();
   const invoices = envReady ? await getInvoices() : [];
   const invoiceGroups = groupInvoicesByCompany(invoices);
 
