@@ -43,7 +43,8 @@ async function getBoundD1() {
   try {
     const { getCloudflareContext } = await import("@opennextjs/cloudflare");
     const context = await getCloudflareContext({ async: true });
-    return (context.env?.DB as D1DatabaseBinding | undefined) ?? null;
+    const env = context.env as Record<string, unknown> | undefined;
+    return (env?.DB as D1DatabaseBinding | undefined) ?? null;
   } catch {
     return null;
   }
