@@ -44,7 +44,7 @@ CLOUDFLARE_D1_DATABASE_ID=6e483d82-680a-4e56-959c-abfcd0ab2bd1
 
 The schema lives in [cloudflare/migrations/0001_init.sql](/mnt/f/AI/inv-creator/cloudflare/migrations/0001_init.sql:1).
 
-The repo-level Wrangler config lives in [wrangler.toml](/mnt/f/AI/inv-creator/wrangler.toml:1) and points the `DB` binding at the configured D1 database.
+The repo-level D1 migration config lives in [wrangler.d1.toml](/mnt/f/AI/inv-creator/wrangler.d1.toml:1) and points the `DB` binding at the configured D1 database.
 
 To apply pending migrations to the remote database:
 
@@ -73,7 +73,7 @@ npm run d1:execute -- --command="SELECT name FROM sqlite_master WHERE type='tabl
 You can also execute the migration file directly if you need a one-off bootstrap:
 
 ```bash
-npx wrangler d1 execute DB --config wrangler.toml --remote --file=cloudflare/migrations/0001_init.sql
+npx wrangler d1 execute DB --config wrangler.d1.toml --remote --file=cloudflare/migrations/0001_init.sql
 ```
 
 4. Start local development:
@@ -94,7 +94,7 @@ If the environment variables are not set yet, the dashboard still loads and show
 - `lib/validation/`: Zod schemas and form defaults
 - `lib/utils/`: Formatting, mapping, and invoice calculation helpers
 - `cloudflare/migrations/`: D1 schema migration files
-- `wrangler.toml`: Cloudflare D1 binding and migration configuration
+- `wrangler.d1.toml`: Cloudflare D1 migration-only configuration
 
 ## Database Notes
 
@@ -110,6 +110,16 @@ Invoices reference a saved company profile through `company_id` and may also ref
 ## Auth
 
 The current D1 version does not include an application auth system. The old Supabase Auth and admin user management flow was removed during the backend switch. The `/login` and `/admin/users` routes now document that limitation instead of providing a live auth flow.
+
+## Cloudflare Pages
+
+This repository is a Next.js app, not a standalone Worker script. The `wrangler.d1.toml` file exists only for D1 migrations and ad hoc SQL commands.
+
+For Cloudflare Pages deployment:
+
+- Build command: `npm run build`
+- Deploy command: leave empty
+- Do not run `npx wrangler deploy` for this repo unless you intentionally add a Worker entrypoint later
 
 ## Local Development Command
 
