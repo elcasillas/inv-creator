@@ -1,8 +1,8 @@
 import { InvoiceTable } from "@/components/invoices/invoice-table";
 import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { hasSupabaseEnv } from "@/lib/supabase/env";
-import { getInvoices } from "@/lib/supabase/queries";
+import { hasD1Env } from "@/lib/d1/env";
+import { getInvoices } from "@/lib/d1/queries";
 import { type InvoiceRow } from "@/types/invoice";
 
 export const dynamic = "force-dynamic";
@@ -47,7 +47,7 @@ function groupInvoicesByCompany(invoices: InvoiceRow[]) {
 }
 
 export default async function DashboardPage() {
-  const envReady = hasSupabaseEnv();
+  const envReady = hasD1Env();
   const invoices = envReady ? await getInvoices() : [];
   const invoiceGroups = groupInvoicesByCompany(invoices);
 
@@ -69,7 +69,7 @@ export default async function DashboardPage() {
         {!envReady ? (
           <Card className="overflow-hidden">
             <div className="border-b border-slate-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
-              Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in `.env.local` to load and save invoices.
+              Add `CLOUDFLARE_API_TOKEN` in `.env.local` to load and save invoices from Cloudflare D1.
             </div>
             <InvoiceTable invoices={[]} />
           </Card>

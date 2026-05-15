@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ClientForm } from "@/components/clients/client-form";
-import { canManageClients, getClientById } from "@/lib/supabase/queries";
+import { canManageClients, getClientById } from "@/lib/d1/queries";
 import { mapClientToFormValues } from "@/lib/utils/client-mappers";
 
 export const dynamic = "force-dynamic";
@@ -23,14 +23,10 @@ export default async function EditClientPage({
               Back to clients
             </Link>
             <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Edit Client</h1>
-            <p className="text-sm text-slate-500">Sign in to edit saved client profiles.</p>
+            <p className="text-sm text-slate-500">Configure Cloudflare D1 to edit saved client profiles.</p>
           </div>
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            Client profiles require sign-in.{" "}
-            <Link href="/login" className="font-medium underline">
-              Log in
-            </Link>{" "}
-            to manage your saved clients.
+            Add `CLOUDFLARE_API_TOKEN` in `.env.local` to manage your saved clients.
           </div>
         </div>
       </main>

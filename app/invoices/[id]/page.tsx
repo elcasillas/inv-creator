@@ -5,7 +5,7 @@ import { DownloadPdfButton } from "@/components/invoices/download-pdf-button";
 import { InvoiceDocument } from "@/components/invoices/invoice-document";
 import { StatusBadge } from "@/components/invoices/status-badge";
 import { ButtonLink } from "@/components/ui/button";
-import { getInvoiceById } from "@/lib/supabase/queries";
+import { getInvoiceById } from "@/lib/d1/queries";
 import { mapInvoiceToDocument } from "@/lib/utils/invoice-document";
 
 export const dynamic = "force-dynamic";

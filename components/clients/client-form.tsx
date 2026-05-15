@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -54,11 +53,7 @@ export function ClientForm({
     <form onSubmit={onSubmit} className="space-y-6">
       {!authEnabled ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Saving client profiles requires sign-in.{" "}
-          <Link href="/login" className="font-medium underline">
-            Log in
-          </Link>{" "}
-          to continue.
+          Saving client profiles requires `CLOUDFLARE_API_TOKEN` in `.env.local`.
         </div>
       ) : null}
       <Card className="p-6">

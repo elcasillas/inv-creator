@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { notFound } from "next/navigation";
 import { InvoiceForm } from "@/components/invoices/invoice-form";
-import { getClients, getCompanies, getInvoiceById } from "@/lib/supabase/queries";
+import { getClients, getCompanies, getInvoiceById } from "@/lib/d1/queries";
 import { mapInvoiceToFormValues } from "@/lib/utils/invoice-mappers";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +28,7 @@ export default async function EditInvoicePage({
             </Link>
             <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Edit Invoice</h1>
             <p className="text-sm text-slate-500">
-              Update the invoice and replace its line items in Supabase.
+              Update the invoice and replace its line items in Cloudflare D1.
             </p>
           </div>
           <InvoiceForm

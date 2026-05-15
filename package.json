@@ -7,7 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "d1:migrations:list": "npx wrangler d1 migrations list DB --config wrangler.toml --remote",
+    "d1:migrations:apply": "npx wrangler d1 migrations apply DB --config wrangler.toml --remote",
+    "d1:migrations:list:local": "npx wrangler d1 migrations list DB --config wrangler.toml --local",
+    "d1:migrations:apply:local": "npx wrangler d1 migrations apply DB --config wrangler.toml --local",
+    "d1:execute": "npx wrangler d1 execute DB --config wrangler.toml --remote",
+    "d1:execute:local": "npx wrangler d1 execute DB --config wrangler.toml --local"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

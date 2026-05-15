@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { InvoiceForm } from "@/components/invoices/invoice-form";
-import { getClients, getCompanies, getNextInvoiceNumbersByCompany } from "@/lib/supabase/queries";
+import { getClients, getCompanies, getNextInvoiceNumbersByCompany } from "@/lib/d1/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,7 @@ export default async function NewInvoicePage() {
           </Link>
           <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Create Invoice</h1>
           <p className="text-sm text-slate-500">
-            Enter the invoice details and save them to Supabase.
+            Enter the invoice details and save them to Cloudflare D1.
           </p>
         </div>
         <InvoiceForm

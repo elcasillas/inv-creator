@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CompanyForm } from "@/components/companies/company-form";
-import { getCompanyById } from "@/lib/supabase/queries";
+import { getCompanyById } from "@/lib/d1/queries";
 import { mapCompanyToFormValues } from "@/lib/utils/company-mappers";
 
 export const dynamic = "force-dynamic";

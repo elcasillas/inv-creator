@@ -1,7 +1,7 @@
 import { CompanyTable } from "@/components/companies/company-table";
 import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { getCompanies } from "@/lib/supabase/queries";
+import { getCompanies } from "@/lib/d1/queries";
 
 export const dynamic = "force-dynamic";
 

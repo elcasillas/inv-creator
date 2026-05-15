@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { executeStatement } from "@/lib/d1/client";
 import { companySchema, type CompanyFormValues } from "@/lib/validation/company";
 
 type CompanyActionResult =
@@ -29,17 +29,36 @@ function normalizeCompanyPayload(values: CompanyFormValues) {
 
 export async function createCompanyAction(values: CompanyFormValues): Promise<CompanyActionResult> {
   try {
-    const supabase = await createServerSupabaseClient();
     const payload = normalizeCompanyPayload(values);
-    const { data, error } = await supabase.from("companies").insert(payload).select("id").single();
-
-    if (error) {
-      return { success: false, message: error.message };
-    }
+    const companyId = crypto.randomUUID();
+    const timestamp = new Date().toISOString();
+    await executeStatement(
+      `INSERT INTO companies (
+        id, name, invoice_start_number, address, city, state, postal_code, country,
+        email, phone, website, tax_id, logo_url, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        companyId,
+        payload.name,
+        payload.invoice_start_number,
+        payload.address,
+        payload.city,
+        payload.state,
+        payload.postal_code,
+        payload.country,
+        payload.email,
+        payload.phone,
+        payload.website,
+        payload.tax_id,
+        payload.logo_url,
+        timestamp,
+        timestamp
+      ]
+    );
 
     revalidatePath("/companies");
     revalidatePath("/invoices/new");
-    return { success: true, companyId: data.id };
+    return { success: true, companyId };
   } catch (error) {
     return { success: false, message: error instanceof Error ? error.message : "Failed to save company." };
   }
@@ -50,13 +69,29 @@ export async function updateCompanyAction(
   values: CompanyFormValues
 ): Promise<CompanyActionResult> {
   try {
-    const supabase = await createServerSupabaseClient();
     const payload = normalizeCompanyPayload(values);
-    const { error } = await supabase.from("companies").update(payload).eq("id", id);
-
-    if (error) {
-      return { success: false, message: error.message };
-    }
+    await executeStatement(
+      `UPDATE companies
+       SET name = ?, invoice_start_number = ?, address = ?, city = ?, state = ?, postal_code = ?,
+           country = ?, email = ?, phone = ?, website = ?, tax_id = ?, logo_url = ?, updated_at = ?
+       WHERE id = ?`,
+      [
+        payload.name,
+        payload.invoice_start_number,
+        payload.address,
+        payload.city,
+        payload.state,
+        payload.postal_code,
+        payload.country,
+        payload.email,
+        payload.phone,
+        payload.website,
+        payload.tax_id,
+        payload.logo_url,
+        new Date().toISOString(),
+        id
+      ]
+    );
 
     revalidatePath("/companies");
     revalidatePath(`/companies/${id}/edit`);
@@ -68,12 +103,7 @@ export async function updateCompanyAction(
 }
 
 export async function deleteCompanyAction(id: string) {
-  const supabase = await createServerSupabaseClient();
-  const { error } = await supabase.from("companies").delete().eq("id", id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  await executeStatement("DELETE FROM companies WHERE id = ?", [id]);
 
   revalidatePath("/companies");
   revalidatePath("/invoices/new");

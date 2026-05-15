@@ -1,8 +1,5 @@
 import Image from "next/image";
-import { login } from "@/app/login/actions";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 
 export default async function LoginPage({
   searchParams
@@ -32,26 +29,20 @@ export default async function LoginPage({
         </div>
 
         <Card className="p-6">
-          <form className="space-y-4">
-            <label className="block space-y-2">
-              <span className="text-sm font-medium text-slate-700">Email</span>
-              <Input name="email" type="email" required placeholder="you@example.com" />
-            </label>
-            <label className="block space-y-2">
-              <span className="text-sm font-medium text-slate-700">Password</span>
-              <Input name="password" type="password" required placeholder="••••••••" />
-            </label>
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">
+              Supabase authentication is no longer part of this app. Invoice, company, and client data are now loaded
+              from the configured Cloudflare D1 database.
+            </p>
+            <p className="text-sm text-slate-600">
+              Set `CLOUDFLARE_API_TOKEN` in `.env.local` to enable database access.
+            </p>
             {params?.message ? (
               <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
                 {params.message}
               </p>
             ) : null}
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Button formAction={login} variant="primary">
-                Log in
-              </Button>
-            </div>
-          </form>
+          </div>
         </Card>
       </div>
     </main>

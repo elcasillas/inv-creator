@@ -1,0 +1,9 @@
+name = "inv-creator"
+compatibility_date = "2026-05-15"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "inv-creator"
+database_id = "6e483d82-680a-4e56-959c-abfcd0ab2bd1"
+preview_database_id = "6e483d82-680a-4e56-959c-abfcd0ab2bd1"
+migrations_dir = "cloudflare/migrations"

@@ -1,6 +1,6 @@
 # Simple Invoice Creator
 
-A minimal invoice creator built with Next.js 15, App Router, TypeScript, Tailwind CSS v3, and Supabase PostgreSQL.
+A minimal invoice creator built with Next.js 15, App Router, TypeScript, Tailwind CSS v3, and Cloudflare D1.
 
 ## Features
 
@@ -8,10 +8,9 @@ A minimal invoice creator built with Next.js 15, App Router, TypeScript, Tailwin
 - Company profile management with reusable sender details
 - Company-specific invoice numbering with configurable start numbers
 - Client profile management with reusable billing details
-- Supabase email/password login for user-scoped client profiles
 - Create, edit, view, print, and delete invoices
 - Dynamic line items with automatic subtotal, tax, and total calculation
-- Supabase-backed persistence using server actions
+- Cloudflare D1-backed persistence using server actions
 - Zod validation and React Hook Form integration
 - Clean responsive UI with print-friendly invoice detail pages
 
@@ -21,8 +20,7 @@ A minimal invoice creator built with Next.js 15, App Router, TypeScript, Tailwin
 - App Router
 - TypeScript strict mode
 - Tailwind CSS v3
-- Supabase PostgreSQL
-- Supabase Auth SSR helpers
+- Cloudflare D1
 - React Hook Form
 - Zod
 
@@ -37,29 +35,46 @@ npm install
 2. Copy `.env.example` to `.env.local` and fill in:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+CLOUDFLARE_API_TOKEN=your_cloudflare_api_token
+CLOUDFLARE_ACCOUNT_ID=54e5cb8c2066084f27e65ea99836e6a0
+CLOUDFLARE_D1_DATABASE_ID=6e483d82-680a-4e56-959c-abfcd0ab2bd1
 ```
 
-3. Run the Supabase migration.
+3. Apply the D1 schema migration.
 
-If you use the Supabase CLI:
+The schema lives in [cloudflare/migrations/0001_init.sql](/mnt/f/AI/inv-creator/cloudflare/migrations/0001_init.sql:1).
+
+The repo-level Wrangler config lives in [wrangler.toml](/mnt/f/AI/inv-creator/wrangler.toml:1) and points the `DB` binding at the configured D1 database.
+
+To apply pending migrations to the remote database:
 
 ```bash
-supabase db push
+npm run d1:migrations:apply
 ```
 
-Or run the SQL in [supabase/migrations/20260501131500_create_invoices.sql](/mnt/c/Users/edcas/My%20Drive/AI/InvoiceCreator/supabase/migrations/20260501131500_create_invoices.sql:1) from the Supabase SQL editor.
+To preview pending migrations before applying them:
 
-If you already created the tables and hit a Row Level Security error such as `new row violates row-level security policy for table "invoices"`, run the follow-up policy migration too:
+```bash
+npm run d1:migrations:list
+```
 
-- [supabase/migrations/20260501190000_enable_invoice_rls.sql](/mnt/c/Users/edcas/My%20Drive/AI/InvoiceCreator/supabase/migrations/20260501190000_enable_invoice_rls.sql:1)
-- [supabase/migrations/20260501203000_add_companies.sql](/mnt/c/Users/edcas/My%20Drive/AI/InvoiceCreator/supabase/migrations/20260501203000_add_companies.sql:1)
-- [supabase/migrations/20260501203500_enable_company_rls.sql](/mnt/c/Users/edcas/My%20Drive/AI/InvoiceCreator/supabase/migrations/20260501203500_enable_company_rls.sql:1)
-- [supabase/migrations/20260501213000_add_clients.sql](/mnt/c/Users/edcas/My%20Drive/AI/InvoiceCreator/supabase/migrations/20260501213000_add_clients.sql:1)
-- [supabase/migrations/20260501213500_enable_client_rls.sql](/mnt/c/Users/edcas/My%20Drive/AI/InvoiceCreator/supabase/migrations/20260501213500_enable_client_rls.sql:1)
-- [supabase/migrations/20260502090000_add_company_invoice_start_number.sql](/mnt/c/Users/edcas/My%20Drive/AI/InvoiceCreator/supabase/migrations/20260502090000_add_company_invoice_start_number.sql:1)
+To apply against Wrangler's local D1 database instead of the remote database:
+
+```bash
+npm run d1:migrations:apply:local
+```
+
+To run an ad hoc SQL command against the remote database:
+
+```bash
+npm run d1:execute -- --command="SELECT name FROM sqlite_master WHERE type='table'"
+```
+
+You can also execute the migration file directly if you need a one-off bootstrap:
+
+```bash
+npx wrangler d1 execute DB --config wrangler.toml --remote --file=cloudflare/migrations/0001_init.sql
+```
 
 4. Start local development:
 
@@ -75,10 +90,11 @@ If the environment variables are not set yet, the dashboard still loads and show
 
 - `app/`: App Router pages, layout, global styles, and server actions
 - `components/`: Reusable UI pieces and invoice-specific components
-- `lib/supabase/`: Dedicated Supabase client utilities and queries
+- `lib/d1/`: Dedicated Cloudflare D1 client utilities and queries
 - `lib/validation/`: Zod schemas and form defaults
 - `lib/utils/`: Formatting, mapping, and invoice calculation helpers
-- `supabase/migrations/`: SQL migration files
+- `cloudflare/migrations/`: D1 schema migration files
+- `wrangler.toml`: Cloudflare D1 binding and migration configuration
 
 ## Database Notes
 
@@ -88,32 +104,12 @@ The app uses these main tables:
 - `companies`
 - `invoices`
 - `invoice_items`
-- `profiles`
 
 Invoices reference a saved company profile through `company_id` and may also reference a saved client profile through `client_id`. Each company stores its own `invoice_start_number`, and new invoices use a company-specific numeric sequence. Edits replace the associated line items for an invoice after updating the parent invoice. Deleting an invoice also deletes its line items through `on delete cascade`.
 
 ## Auth
 
-The app uses Supabase Auth with admin-managed accounts:
-
-- Visit `/login` to log in with email and password
-- Public signup is intentionally not exposed
-- Admin users can manage accounts at `/admin/users`
-- User creation and auth admin mutations run server-side with `SUPABASE_SERVICE_ROLE_KEY`
-- Profiles live in `public.profiles` and link `profiles.id` to `auth.users.id`
-- Roles are `admin` and `user`
-
-Set these environment variables locally:
-
-```bash
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
-SUPABASE_SERVICE_ROLE_KEY=...
-```
-
-The `profiles` table is protected with RLS. Users can read their own profile, while admins can read and manage all profiles. The `clients` table remains user-scoped through `user_id = auth.uid()`.
-
-For the first admin, create or update one Supabase Auth user from the Supabase dashboard and set that user's `public.profiles.role` to `admin`. After that, use `/admin/users` for account management.
+The current D1 version does not include an application auth system. The old Supabase Auth and admin user management flow was removed during the backend switch. The `/login` and `/admin/users` routes now document that limitation instead of providing a live auth flow.
 
 ## Local Development Command
 

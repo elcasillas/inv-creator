@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Invoice Creator",
-  description: "A simple invoice creator built with Next.js and Supabase.",
+  description: "A simple invoice creator built with Next.js and Cloudflare D1.",
   icons: {
     icon: "/icon.svg",
     shortcut: "/icon.svg",

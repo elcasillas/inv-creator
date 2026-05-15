@@ -197,7 +197,7 @@ export function InvoiceForm({
               {mode === "create" ? "Ready to save this invoice?" : "Ready to update this invoice?"}
             </p>
             <p className="text-sm text-slate-500">
-              Required fields are validated before anything is written to Supabase.
+              Required fields are validated before anything is written to Cloudflare D1.
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row">

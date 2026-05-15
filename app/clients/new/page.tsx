@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ClientForm } from "@/components/clients/client-form";
-import { canManageClients } from "@/lib/supabase/queries";
+import { canManageClients } from "@/lib/d1/queries";
 
 export default async function NewClientPage() {
   const authEnabled = await canManageClients();
@@ -17,11 +17,8 @@ export default async function NewClientPage() {
         </div>
         {!authEnabled ? (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            Client profiles require sign-in.{" "}
-            <Link href="/login" className="font-medium underline">
-              Log in
-            </Link>{" "}
-            to save reusable clients. You can still create invoices using manual client details.
+            Add `CLOUDFLARE_API_TOKEN` in `.env.local` to save reusable clients. You can still create invoices
+            using manual client details.
           </div>
         ) : null}
         <ClientForm mode="create" authEnabled={authEnabled} />

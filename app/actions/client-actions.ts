@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getAuthenticatedUser } from "@/lib/supabase/auth";
+import { executeStatement } from "@/lib/d1/client";
 import { clientSchema, type ClientFormValues } from "@/lib/validation/client";
 
 type ClientActionResult =
@@ -27,29 +27,35 @@ function normalizeClientPayload(values: ClientFormValues) {
 
 export async function createClientAction(values: ClientFormValues): Promise<ClientActionResult> {
   try {
-    const { supabase, user } = await getAuthenticatedUser();
-
-    if (!user) {
-      return {
-        success: false,
-        message: "Client profiles require sign-in. You can still enter client details manually on invoices."
-      };
-    }
-
     const payload = normalizeClientPayload(values);
-    const { data, error } = await supabase
-      .from("clients")
-      .insert({ ...payload, user_id: user.id })
-      .select("id")
-      .single();
-
-    if (error) {
-      return { success: false, message: error.message };
-    }
+    const clientId = crypto.randomUUID();
+    const timestamp = new Date().toISOString();
+    await executeStatement(
+      `INSERT INTO clients (
+        id, user_id, name, email, phone, billing_address, city, state, postal_code,
+        country, tax_id, notes, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        clientId,
+        "local",
+        payload.name,
+        payload.email,
+        payload.phone,
+        payload.billing_address,
+        payload.city,
+        payload.state,
+        payload.postal_code,
+        payload.country,
+        payload.tax_id,
+        payload.notes,
+        timestamp,
+        timestamp
+      ]
+    );
 
     revalidatePath("/clients");
     revalidatePath("/invoices/new");
-    return { success: true, clientId: data.id };
+    return { success: true, clientId };
   } catch (error) {
     return { success: false, message: error instanceof Error ? error.message : "Failed to save client." };
   }
@@ -60,21 +66,27 @@ export async function updateClientAction(
   values: ClientFormValues
 ): Promise<ClientActionResult> {
   try {
-    const { supabase, user } = await getAuthenticatedUser();
-
-    if (!user) {
-      return {
-        success: false,
-        message: "Client profiles require sign-in. You can still enter client details manually on invoices."
-      };
-    }
-
     const payload = normalizeClientPayload(values);
-    const { error } = await supabase.from("clients").update(payload).eq("id", id);
-
-    if (error) {
-      return { success: false, message: error.message };
-    }
+    await executeStatement(
+      `UPDATE clients
+       SET name = ?, email = ?, phone = ?, billing_address = ?, city = ?, state = ?, postal_code = ?,
+           country = ?, tax_id = ?, notes = ?, updated_at = ?
+       WHERE id = ?`,
+      [
+        payload.name,
+        payload.email,
+        payload.phone,
+        payload.billing_address,
+        payload.city,
+        payload.state,
+        payload.postal_code,
+        payload.country,
+        payload.tax_id,
+        payload.notes,
+        new Date().toISOString(),
+        id
+      ]
+    );
 
     revalidatePath("/clients");
     revalidatePath(`/clients/${id}/edit`);
@@ -86,17 +98,7 @@ export async function updateClientAction(
 }
 
 export async function deleteClientAction(id: string) {
-  const { supabase, user } = await getAuthenticatedUser();
-
-  if (!user) {
-    throw new Error("Client profiles require sign-in.");
-  }
-
-  const { error } = await supabase.from("clients").delete().eq("id", id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  await executeStatement("DELETE FROM clients WHERE id = ?", [id]);
 
   revalidatePath("/clients");
   revalidatePath("/invoices/new");

@@ -1,8 +1,7 @@
-import Link from "next/link";
 import { ClientTable } from "@/components/clients/client-table";
 import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { canManageClients, getClients } from "@/lib/supabase/queries";
+import { canManageClients, getClients } from "@/lib/d1/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -27,11 +26,7 @@ export default async function ClientsPage() {
         <Card className="overflow-hidden">
           {!authEnabled ? (
             <div className="border-b border-slate-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
-              Client profiles require a signed-in Supabase user.{" "}
-              <Link href="/login" className="font-medium underline">
-                Log in
-              </Link>{" "}
-              to create and reuse saved clients. Manual client entry on invoices still works.
+              Add `CLOUDFLARE_API_TOKEN` in `.env.local` to create and reuse saved clients.
             </div>
           ) : null}
           <ClientTable clients={clients} />

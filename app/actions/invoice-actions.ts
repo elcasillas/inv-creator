@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { executeStatement, queryRows } from "@/lib/d1/client";
+import { getClientById, getCompanyById } from "@/lib/d1/queries";
 import { calculateInvoiceTotals, calculateLineTotal } from "@/lib/utils/invoice";
 import { getNextInvoiceNumberForCompany } from "@/lib/utils/invoice-number";
 import { invoiceSchema, type InvoiceFormValues } from "@/lib/validation/invoice";
@@ -64,35 +65,25 @@ async function generateNextInvoiceNumber(
   companyId: string,
   invoiceStartNumber: number
 ) {
-  const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase
-    .from("invoices")
-    .select("invoice_number")
-    .eq("company_id", companyId);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  const data = await queryRows<{ invoice_number: string | null }>(
+    "SELECT invoice_number FROM invoices WHERE company_id = ?",
+    [companyId]
+  );
 
   return getNextInvoiceNumberForCompany(
     invoiceStartNumber,
-    ((data ?? []) as Array<{ invoice_number: string | null }>).map((row) => row.invoice_number)
+    data.map((row) => row.invoice_number)
   );
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return error instanceof Error && error.message.toLowerCase().includes("unique");
 }
 
 export async function createInvoiceAction(values: InvoiceFormValues): Promise<InvoiceActionResult> {
   try {
-    const supabase = await createServerSupabaseClient();
     const payload = normalizePayload(values);
-    const { data: company, error: companyError } = await supabase
-      .from("companies")
-      .select("*")
-      .eq("id", payload.invoice.company_id)
-      .single();
-
-    if (companyError) {
-      return { success: false, message: companyError.message };
-    }
+    const company = await getCompanyById(payload.invoice.company_id);
 
     let invoiceId: string | null = null;
 
@@ -107,15 +98,7 @@ export async function createInvoiceAction(values: InvoiceFormValues): Promise<In
       .join("\n");
 
     if (payload.invoice.client_id) {
-      const { data: client, error: clientError } = await supabase
-        .from("clients")
-        .select("*")
-        .eq("id", payload.invoice.client_id)
-        .single();
-
-      if (clientError) {
-        return { success: false, message: clientError.message };
-      }
+      const client = await getClientById(payload.invoice.client_id);
 
       payload.invoice.client_name = client.name;
       payload.invoice.client_email = client.email;
@@ -131,25 +114,50 @@ export async function createInvoiceAction(values: InvoiceFormValues): Promise<In
     for (let attempt = 0; attempt < 3; attempt += 1) {
       payload.invoice.invoice_number = await generateNextInvoiceNumber(
         payload.invoice.company_id,
-        Number(company.invoice_start_number ?? 1000)
+        company.invoice_start_number
       );
 
-      const { data: invoice, error: invoiceError } = await supabase
-        .from("invoices")
-        .insert(payload.invoice)
-        .select("id")
-        .single();
-
-      if (!invoiceError) {
-        invoiceId = invoice.id;
+      try {
+        const nextInvoiceId = crypto.randomUUID();
+        const timestamp = new Date().toISOString();
+        await executeStatement(
+          `INSERT INTO invoices (
+            id, company_id, client_id, invoice_number, invoice_date, due_date, status,
+            client_name, client_email, client_address, company_name, company_email,
+            company_address, notes, subtotal, tax_rate, tax_amount, total, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            nextInvoiceId,
+            payload.invoice.company_id,
+            payload.invoice.client_id,
+            payload.invoice.invoice_number,
+            payload.invoice.invoice_date,
+            payload.invoice.due_date,
+            payload.invoice.status,
+            payload.invoice.client_name,
+            payload.invoice.client_email,
+            payload.invoice.client_address,
+            payload.invoice.company_name,
+            payload.invoice.company_email,
+            payload.invoice.company_address,
+            payload.invoice.notes,
+            payload.invoice.subtotal,
+            payload.invoice.tax_rate,
+            payload.invoice.tax_amount,
+            payload.invoice.total,
+            timestamp,
+            timestamp
+          ]
+        );
+        invoiceId = nextInvoiceId;
         break;
-      }
+      } catch (error) {
+        if (isUniqueConstraintError(error)) {
+          continue;
+        }
 
-      if (invoiceError.code === "23505") {
-        continue;
+        return { success: false, message: error instanceof Error ? error.message : "Failed to save invoice." };
       }
-
-      return { success: false, message: invoiceError.message };
     }
 
     if (!invoiceId) {
@@ -159,16 +167,26 @@ export async function createInvoiceAction(values: InvoiceFormValues): Promise<In
       };
     }
 
-    const { error: itemsError } = await supabase.from("invoice_items").insert(
-      payload.items.map((item) => ({
-        invoice_id: invoiceId,
-        ...item
-      }))
-    );
-
-    if (itemsError) {
-      await supabase.from("invoices").delete().eq("id", invoiceId);
-      return { success: false, message: itemsError.message };
+    try {
+      for (const item of payload.items) {
+        await executeStatement(
+          `INSERT INTO invoice_items (
+            id, invoice_id, description, quantity, unit_price, line_total, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            crypto.randomUUID(),
+            invoiceId,
+            item.description,
+            item.quantity,
+            item.unit_price,
+            item.line_total,
+            new Date().toISOString()
+          ]
+        );
+      }
+    } catch (error) {
+      await executeStatement("DELETE FROM invoices WHERE id = ?", [invoiceId]);
+      return { success: false, message: error instanceof Error ? error.message : "Failed to save invoice items." };
     }
 
     revalidatePath("/");
@@ -189,17 +207,8 @@ export async function updateInvoiceAction(
   values: InvoiceFormValues
 ): Promise<InvoiceActionResult> {
   try {
-    const supabase = await createServerSupabaseClient();
     const payload = normalizePayload(values);
-    const { data: company, error: companyError } = await supabase
-      .from("companies")
-      .select("*")
-      .eq("id", payload.invoice.company_id)
-      .single();
-
-    if (companyError) {
-      return { success: false, message: companyError.message };
-    }
+    const company = await getCompanyById(payload.invoice.company_id);
 
     payload.invoice.company_name = company.name;
     payload.invoice.company_email = company.email;
@@ -212,15 +221,7 @@ export async function updateInvoiceAction(
       .join("\n");
 
     if (payload.invoice.client_id) {
-      const { data: client, error: clientError } = await supabase
-        .from("clients")
-        .select("*")
-        .eq("id", payload.invoice.client_id)
-        .single();
-
-      if (clientError) {
-        return { success: false, message: clientError.message };
-      }
+      const client = await getClientById(payload.invoice.client_id);
 
       payload.invoice.client_name = client.name;
       payload.invoice.client_email = client.email;
@@ -233,34 +234,64 @@ export async function updateInvoiceAction(
         .join("\n");
     }
 
-    const { error: invoiceError } = await supabase.from("invoices").update(payload.invoice).eq("id", id);
-
-    if (invoiceError) {
-      if (invoiceError.code === "23505") {
+    try {
+      await executeStatement(
+        `UPDATE invoices
+         SET company_id = ?, client_id = ?, invoice_number = ?, invoice_date = ?, due_date = ?, status = ?,
+             client_name = ?, client_email = ?, client_address = ?, company_name = ?, company_email = ?,
+             company_address = ?, notes = ?, subtotal = ?, tax_rate = ?, tax_amount = ?, total = ?, updated_at = ?
+         WHERE id = ?`,
+        [
+          payload.invoice.company_id,
+          payload.invoice.client_id,
+          payload.invoice.invoice_number,
+          payload.invoice.invoice_date,
+          payload.invoice.due_date,
+          payload.invoice.status,
+          payload.invoice.client_name,
+          payload.invoice.client_email,
+          payload.invoice.client_address,
+          payload.invoice.company_name,
+          payload.invoice.company_email,
+          payload.invoice.company_address,
+          payload.invoice.notes,
+          payload.invoice.subtotal,
+          payload.invoice.tax_rate,
+          payload.invoice.tax_amount,
+          payload.invoice.total,
+          new Date().toISOString(),
+          id
+        ]
+      );
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
         return { success: false, message: "Invoice number must be unique for each company." };
       }
 
-      return { success: false, message: invoiceError.message };
+      return { success: false, message: error instanceof Error ? error.message : "Failed to update invoice." };
     }
 
-    const { error: deleteItemsError } = await supabase
-      .from("invoice_items")
-      .delete()
-      .eq("invoice_id", id);
+    await executeStatement("DELETE FROM invoice_items WHERE invoice_id = ?", [id]);
 
-    if (deleteItemsError) {
-      return { success: false, message: deleteItemsError.message };
-    }
-
-    const { error: itemsError } = await supabase.from("invoice_items").insert(
-      payload.items.map((item) => ({
-        invoice_id: id,
-        ...item
-      }))
-    );
-
-    if (itemsError) {
-      return { success: false, message: itemsError.message };
+    try {
+      for (const item of payload.items) {
+        await executeStatement(
+          `INSERT INTO invoice_items (
+            id, invoice_id, description, quantity, unit_price, line_total, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            crypto.randomUUID(),
+            id,
+            item.description,
+            item.quantity,
+            item.unit_price,
+            item.line_total,
+            new Date().toISOString()
+          ]
+        );
+      }
+    } catch (error) {
+      return { success: false, message: error instanceof Error ? error.message : "Failed to update invoice items." };
     }
 
     revalidatePath("/");
@@ -277,12 +308,7 @@ export async function updateInvoiceAction(
 }
 
 export async function deleteInvoiceAction(id: string) {
-  const supabase = await createServerSupabaseClient();
-  const { error } = await supabase.from("invoices").delete().eq("id", id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  await executeStatement("DELETE FROM invoices WHERE id = ?", [id]);
 
   revalidatePath("/");
 }
