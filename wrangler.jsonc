@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "main": ".open-next/worker.js",
+  "name": "inv-creator",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "inv-creator"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "inv-creator",
+      "database_id": "6e483d82-680a-4e56-959c-abfcd0ab2bd1",
+      "preview_database_id": "6e483d82-680a-4e56-959c-abfcd0ab2bd1"
+    }
+  ],
+  "images": {
+    "binding": "IMAGES"
+  }
+}

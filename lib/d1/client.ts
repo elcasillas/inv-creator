@@ -1,5 +1,24 @@
 import { getD1Env } from "@/lib/d1/env";
 
+type D1RunResult<T> = {
+  results?: T[];
+  meta?: {
+    changes?: number;
+    last_row_id?: number;
+  };
+};
+
+type D1PreparedStatement = {
+  bind: (...params: unknown[]) => {
+    run: <T>() => Promise<D1RunResult<T>>;
+  };
+  run: <T>() => Promise<D1RunResult<T>>;
+};
+
+type D1DatabaseBinding = {
+  prepare: (sql: string) => D1PreparedStatement;
+};
+
 type CloudflareError = {
   message?: string;
 };
@@ -19,6 +38,16 @@ type D1Envelope<T> = {
   errors?: CloudflareError[];
   result?: D1QueryResult<T>[] | D1QueryResult<T>;
 };
+
+async function getBoundD1() {
+  try {
+    const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+    const context = await getCloudflareContext({ async: true });
+    return (context.env?.DB as D1DatabaseBinding | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 function getErrorMessage(payload: D1Envelope<unknown>, fallback: string) {
   const topLevel = payload.errors?.map((error) => error.message).filter(Boolean).join(", ");
@@ -55,6 +84,14 @@ async function postToD1<T>(body: object) {
 }
 
 export async function queryRows<T>(sql: string, params: unknown[] = []) {
+  const db = await getBoundD1();
+
+  if (db) {
+    const statement = db.prepare(sql);
+    const result = params.length ? await statement.bind(...params).run<T>() : await statement.run<T>();
+    return result.results ?? [];
+  }
+
   const payload = await postToD1<T>({ sql, params });
   const result = Array.isArray(payload.result) ? payload.result[0] : payload.result;
   return result?.results ?? [];
@@ -66,6 +103,17 @@ export async function queryFirst<T>(sql: string, params: unknown[] = []) {
 }
 
 export async function executeStatement(sql: string, params: unknown[] = []) {
+  const db = await getBoundD1();
+
+  if (db) {
+    const statement = db.prepare(sql);
+    const result = params.length ? await statement.bind(...params).run<never>() : await statement.run<never>();
+    return {
+      changes: Number(result.meta?.changes ?? 0),
+      lastRowId: result.meta?.last_row_id ?? null
+    };
+  }
+
   const payload = await postToD1<never>({ sql, params });
   const result = Array.isArray(payload.result) ? payload.result[0] : payload.result;
   return {

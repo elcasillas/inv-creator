@@ -1,5 +1,5 @@
 {
-  "name": "simple-invoice-creator",
+  "name": "inv-creator",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,6 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "typecheck": "tsc --noEmit",
     "d1:migrations:list": "npx wrangler d1 migrations list DB --config wrangler.d1.toml --remote",
     "d1:migrations:apply": "npx wrangler d1 migrations apply DB --config wrangler.d1.toml --remote",
@@ -16,6 +20,7 @@
     "d1:execute:local": "npx wrangler d1 execute DB --config wrangler.d1.toml --local"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.19.10",
     "@hookform/resolvers": "^3.9.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.49.8",
@@ -36,6 +41,7 @@
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "wrangler": "^4.92.0"
   }
 }

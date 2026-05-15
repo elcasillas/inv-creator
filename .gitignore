@@ -6,4 +6,7 @@ tsconfig.tsbuildinfo
 .codex
 .env.local
 .vercel
+.wrangler
+.open-next
+worker-configuration.d.ts
 supabase/.temp

@@ -1,6 +1,6 @@
-# Simple Invoice Creator
+# Invoice Creator
 
-A minimal invoice creator built with Next.js 15, App Router, TypeScript, Tailwind CSS v3, and Cloudflare D1.
+A minimal invoice creator built with Next.js 15, App Router, TypeScript, Tailwind CSS v3, Cloudflare D1, and OpenNext for Cloudflare Workers.
 
 ## Features
 
@@ -21,6 +21,7 @@ A minimal invoice creator built with Next.js 15, App Router, TypeScript, Tailwin
 - TypeScript strict mode
 - Tailwind CSS v3
 - Cloudflare D1
+- OpenNext for Cloudflare Workers
 - React Hook Form
 - Zod
 
@@ -44,57 +45,72 @@ CLOUDFLARE_D1_DATABASE_ID=6e483d82-680a-4e56-959c-abfcd0ab2bd1
 
 The schema lives in [cloudflare/migrations/0001_init.sql](/mnt/f/AI/inv-creator/cloudflare/migrations/0001_init.sql:1).
 
-The repo-level D1 migration config lives in [wrangler.d1.toml](/mnt/f/AI/inv-creator/wrangler.d1.toml:1) and points the `DB` binding at the configured D1 database.
-
-To apply pending migrations to the remote database:
-
-```bash
-npm run d1:migrations:apply
-```
-
-To preview pending migrations before applying them:
+The migration config lives in [wrangler.d1.toml](/mnt/f/AI/inv-creator/wrangler.d1.toml:1) and points the `DB` binding at the configured D1 database.
 
 ```bash
 npm run d1:migrations:list
+npm run d1:migrations:apply
 ```
 
-To apply against Wrangler's local D1 database instead of the remote database:
-
-```bash
-npm run d1:migrations:apply:local
-```
-
-To run an ad hoc SQL command against the remote database:
-
-```bash
-npm run d1:execute -- --command="SELECT name FROM sqlite_master WHERE type='table'"
-```
-
-You can also execute the migration file directly if you need a one-off bootstrap:
+You can also execute the migration file directly if needed:
 
 ```bash
 npx wrangler d1 execute DB --config wrangler.d1.toml --remote --file=cloudflare/migrations/0001_init.sql
 ```
 
-4. Start local development:
+4. Start local Next.js development:
 
 ```bash
 npm run dev
 ```
 
-The app will be available at `http://localhost:3000`.
+5. Preview the Worker runtime locally:
 
-If the environment variables are not set yet, the dashboard still loads and shows a setup notice instead of crashing the app.
+```bash
+npm run preview
+```
+
+## Worker Deploy
+
+This repository now explicitly supports the OpenNext-on-Workers deployment path.
+
+The Worker deployment config lives in [wrangler.jsonc](/mnt/f/AI/inv-creator/wrangler.jsonc:1). It explicitly:
+
+- names the Worker `inv-creator`
+- binds the D1 database as `DB`
+- configures the self-reference service binding to the same Worker name
+- points assets to `.open-next/assets`
+
+For Cloudflare Workers Builds, use:
+
+- Build command: `npx @opennextjs/cloudflare build`
+- Deploy command: `npx @opennextjs/cloudflare deploy`
+
+Useful commands:
+
+```bash
+npm run preview
+npm run deploy
+npm run upload
+```
+
+The expected production URL for this deployment path is the Worker URL:
+
+```text
+https://inv-creator.<your-account>.workers.dev
+```
 
 ## Project Structure
 
 - `app/`: App Router pages, layout, global styles, and server actions
 - `components/`: Reusable UI pieces and invoice-specific components
-- `lib/d1/`: Dedicated Cloudflare D1 client utilities and queries
+- `lib/d1/`: Cloudflare D1 client utilities and queries
 - `lib/validation/`: Zod schemas and form defaults
 - `lib/utils/`: Formatting, mapping, and invoice calculation helpers
 - `cloudflare/migrations/`: D1 schema migration files
-- `wrangler.d1.toml`: Cloudflare D1 migration-only configuration
+- `wrangler.d1.toml`: D1 migration-only configuration
+- `wrangler.jsonc`: OpenNext Worker deployment configuration
+- `open-next.config.ts`: OpenNext Cloudflare adapter configuration
 
 ## Database Notes
 
@@ -107,22 +123,8 @@ The app uses these main tables:
 
 Invoices reference a saved company profile through `company_id` and may also reference a saved client profile through `client_id`. Each company stores its own `invoice_start_number`, and new invoices use a company-specific numeric sequence. Edits replace the associated line items for an invoice after updating the parent invoice. Deleting an invoice also deletes its line items through `on delete cascade`.
 
+When running on Cloudflare Workers, the app prefers the bound D1 database from `env.DB`. Outside that runtime it falls back to the Cloudflare D1 HTTP API using the environment variables above.
+
 ## Auth
 
 The current D1 version does not include an application auth system. The old Supabase Auth and admin user management flow was removed during the backend switch. The `/login` and `/admin/users` routes now document that limitation instead of providing a live auth flow.
-
-## Cloudflare Pages
-
-This repository is a Next.js app, not a standalone Worker script. The `wrangler.d1.toml` file exists only for D1 migrations and ad hoc SQL commands.
-
-For Cloudflare Pages deployment:
-
-- Build command: `npm run build`
-- Deploy command: leave empty
-- Do not run `npx wrangler deploy` for this repo unless you intentionally add a Worker entrypoint later
-
-## Local Development Command
-
-```bash
-npm run dev
-```
