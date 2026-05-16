@@ -5,19 +5,28 @@ import type { ProfileRow } from "@/types/profile";
 
 const SESSION_COOKIE_NAME = "inv_creator_session";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
+const BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 type SessionUserRow = ProfileRow & {
   password_hash: string;
 };
 
 function bytesToBase64(bytes: Uint8Array) {
-  let binary = "";
+  let output = "";
 
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
+  for (let index = 0; index < bytes.length; index += 3) {
+    const first = bytes[index] ?? 0;
+    const second = bytes[index + 1] ?? 0;
+    const third = bytes[index + 2] ?? 0;
+    const chunk = (first << 16) | (second << 8) | third;
+
+    output += BASE64_ALPHABET[(chunk >> 18) & 63];
+    output += BASE64_ALPHABET[(chunk >> 12) & 63];
+    output += index + 1 < bytes.length ? BASE64_ALPHABET[(chunk >> 6) & 63] : "=";
+    output += index + 2 < bytes.length ? BASE64_ALPHABET[chunk & 63] : "=";
   }
 
-  return btoa(binary);
+  return output;
 }
 
 function bytesToBase64Url(bytes: Uint8Array) {
@@ -27,11 +36,32 @@ function bytesToBase64Url(bytes: Uint8Array) {
 function base64UrlToBytes(value: string) {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
   const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
-  const binary = atob(padded);
-  const bytes = new Uint8Array(binary.length);
+  const padding = padded.endsWith("==") ? 2 : padded.endsWith("=") ? 1 : 0;
+  const outputLength = (padded.length / 4) * 3 - padding;
+  const bytes = new Uint8Array(outputLength);
+  let byteIndex = 0;
 
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
+  for (let index = 0; index < padded.length; index += 4) {
+    const encoded0 = BASE64_ALPHABET.indexOf(padded[index] ?? "A");
+    const encoded1 = BASE64_ALPHABET.indexOf(padded[index + 1] ?? "A");
+    const encoded2 = padded[index + 2] === "=" ? 0 : BASE64_ALPHABET.indexOf(padded[index + 2] ?? "A");
+    const encoded3 = padded[index + 3] === "=" ? 0 : BASE64_ALPHABET.indexOf(padded[index + 3] ?? "A");
+    const chunk = (encoded0 << 18) | (encoded1 << 12) | (encoded2 << 6) | encoded3;
+
+    if (byteIndex < outputLength) {
+      bytes[byteIndex] = (chunk >> 16) & 255;
+      byteIndex += 1;
+    }
+
+    if (byteIndex < outputLength) {
+      bytes[byteIndex] = (chunk >> 8) & 255;
+      byteIndex += 1;
+    }
+
+    if (byteIndex < outputLength) {
+      bytes[byteIndex] = chunk & 255;
+      byteIndex += 1;
+    }
   }
 
   return bytes;

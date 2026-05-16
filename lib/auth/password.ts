@@ -1,23 +1,54 @@
 const PASSWORD_HASH_PREFIX = "pbkdf2_sha256";
 const PASSWORD_ITERATIONS = 310000;
 const PASSWORD_KEY_LENGTH = 32;
+const BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 function bytesToBase64(bytes: Uint8Array) {
-  let binary = "";
+  let output = "";
 
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
+  for (let index = 0; index < bytes.length; index += 3) {
+    const first = bytes[index] ?? 0;
+    const second = bytes[index + 1] ?? 0;
+    const third = bytes[index + 2] ?? 0;
+    const chunk = (first << 16) | (second << 8) | third;
+
+    output += BASE64_ALPHABET[(chunk >> 18) & 63];
+    output += BASE64_ALPHABET[(chunk >> 12) & 63];
+    output += index + 1 < bytes.length ? BASE64_ALPHABET[(chunk >> 6) & 63] : "=";
+    output += index + 2 < bytes.length ? BASE64_ALPHABET[chunk & 63] : "=";
   }
 
-  return btoa(binary);
+  return output;
 }
 
 function base64ToBytes(value: string) {
-  const binary = atob(value);
-  const bytes = new Uint8Array(binary.length);
+  const sanitized = value.replace(/[^A-Za-z0-9+/=]/g, "");
+  const padding = sanitized.endsWith("==") ? 2 : sanitized.endsWith("=") ? 1 : 0;
+  const outputLength = (sanitized.length / 4) * 3 - padding;
+  const bytes = new Uint8Array(outputLength);
+  let byteIndex = 0;
 
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
+  for (let index = 0; index < sanitized.length; index += 4) {
+    const encoded0 = BASE64_ALPHABET.indexOf(sanitized[index] ?? "A");
+    const encoded1 = BASE64_ALPHABET.indexOf(sanitized[index + 1] ?? "A");
+    const encoded2 = sanitized[index + 2] === "=" ? 0 : BASE64_ALPHABET.indexOf(sanitized[index + 2] ?? "A");
+    const encoded3 = sanitized[index + 3] === "=" ? 0 : BASE64_ALPHABET.indexOf(sanitized[index + 3] ?? "A");
+    const chunk = (encoded0 << 18) | (encoded1 << 12) | (encoded2 << 6) | encoded3;
+
+    if (byteIndex < outputLength) {
+      bytes[byteIndex] = (chunk >> 16) & 255;
+      byteIndex += 1;
+    }
+
+    if (byteIndex < outputLength) {
+      bytes[byteIndex] = (chunk >> 8) & 255;
+      byteIndex += 1;
+    }
+
+    if (byteIndex < outputLength) {
+      bytes[byteIndex] = chunk & 255;
+      byteIndex += 1;
+    }
   }
 
   return bytes;
