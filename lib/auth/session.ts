@@ -10,6 +10,20 @@ type SessionUserRow = ProfileRow & {
   password_hash: string;
 };
 
+function bytesToBase64(bytes: Uint8Array) {
+  let binary = "";
+
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary);
+}
+
+function bytesToBase64Url(bytes: Uint8Array) {
+  return bytesToBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
 function toProfileRow(row: Record<string, unknown>) {
   return {
     id: String(row.id ?? ""),
@@ -24,12 +38,12 @@ function toProfileRow(row: Record<string, unknown>) {
 
 async function hashSessionToken(token: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
-  return Buffer.from(digest).toString("base64");
+  return bytesToBase64(new Uint8Array(digest));
 }
 
 export async function createSession(userId: string) {
   const tokenBytes = crypto.getRandomValues(new Uint8Array(32));
-  const token = Buffer.from(tokenBytes).toString("base64url");
+  const token = bytesToBase64Url(tokenBytes);
   const tokenHash = await hashSessionToken(token);
   const now = new Date();
   const expiresAt = new Date(now.getTime() + SESSION_MAX_AGE_SECONDS * 1000).toISOString();

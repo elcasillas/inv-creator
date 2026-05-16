@@ -2,12 +2,33 @@ const PASSWORD_HASH_PREFIX = "pbkdf2_sha256";
 const PASSWORD_ITERATIONS = 310000;
 const PASSWORD_KEY_LENGTH = 32;
 
+function bytesToBase64(bytes: Uint8Array) {
+  let binary = "";
+
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary);
+}
+
+function base64ToBytes(value: string) {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return bytes;
+}
+
 function encodeBase64(bytes: Uint8Array) {
-  return Buffer.from(bytes).toString("base64");
+  return bytesToBase64(bytes);
 }
 
 function decodeBase64(value: string) {
-  return new Uint8Array(Buffer.from(value, "base64"));
+  return base64ToBytes(value);
 }
 
 function textToBytes(value: string) {
