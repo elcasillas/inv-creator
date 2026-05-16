@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { verifyPassword } from "@/lib/auth/password";
 import { createSession, deleteCurrentSession } from "@/lib/auth/session";
@@ -30,12 +29,10 @@ export async function login(formData: FormData) {
   }
 
   await createSession(String(user.id));
-  revalidatePath("/", "layout");
   redirect("/");
 }
 
 export async function logout() {
   await deleteCurrentSession();
-  revalidatePath("/", "layout");
   redirect("/login");
 }
