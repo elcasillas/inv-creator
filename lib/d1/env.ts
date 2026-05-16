@@ -12,11 +12,18 @@ export async function hasD1Access() {
 
   try {
     const { getCloudflareContext } = await import("@opennextjs/cloudflare");
-    const context = await getCloudflareContext({ async: true });
+    const context = getCloudflareContext();
     const env = context.env as Record<string, unknown> | undefined;
     return Boolean(env?.DB);
   } catch {
-    return false;
+    try {
+      const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+      const context = await getCloudflareContext({ async: true });
+      const env = context.env as Record<string, unknown> | undefined;
+      return Boolean(env?.DB);
+    } catch {
+      return false;
+    }
   }
 }
 

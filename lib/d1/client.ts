@@ -42,11 +42,18 @@ type D1Envelope<T> = {
 async function getBoundD1() {
   try {
     const { getCloudflareContext } = await import("@opennextjs/cloudflare");
-    const context = await getCloudflareContext({ async: true });
+    const context = getCloudflareContext();
     const env = context.env as Record<string, unknown> | undefined;
     return (env?.DB as D1DatabaseBinding | undefined) ?? null;
   } catch {
-    return null;
+    try {
+      const { getCloudflareContext } = await import("@opennextjs/cloudflare");
+      const context = await getCloudflareContext({ async: true });
+      const env = context.env as Record<string, unknown> | undefined;
+      return (env?.DB as D1DatabaseBinding | undefined) ?? null;
+    } catch {
+      return null;
+    }
   }
 }
 
