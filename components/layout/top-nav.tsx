@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { Route } from "next";
+import { logout } from "@/app/login/actions";
+import { getCurrentProfile } from "@/lib/auth/session";
 
 const navItems = [
   { href: "/", label: "Invoices" },
@@ -9,6 +11,12 @@ const navItems = [
 ] as const satisfies ReadonlyArray<{ href: Route; label: string }>;
 
 export async function TopNav() {
+  const profile = await getCurrentProfile();
+  const visibleNavItems =
+    profile?.role === "admin"
+      ? [...navItems, { href: "/admin/users", label: "Admin Users" } as const]
+      : navItems;
+
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
@@ -27,11 +35,22 @@ export async function TopNav() {
           <span>Invoice Creator</span>
         </Link>
         <nav className="flex items-center gap-4 text-xs text-slate-600 sm:gap-6 sm:text-sm">
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <Link key={item.href} href={item.href} className="whitespace-nowrap hover:text-slate-950">
               {item.label}
             </Link>
           ))}
+          {profile ? (
+            <form action={logout}>
+              <button className="whitespace-nowrap hover:text-slate-950" type="submit">
+                Log out
+              </button>
+            </form>
+          ) : (
+            <Link href="/login" className="whitespace-nowrap hover:text-slate-950">
+              Log in
+            </Link>
+          )}
         </nav>
       </div>
     </header>
