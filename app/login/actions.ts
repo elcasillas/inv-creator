@@ -34,7 +34,9 @@ export async function login(formData: FormData) {
     valid = await verifyPassword(password, String(user.password_hash ?? ""));
   } catch (error) {
     console.error("Login password verification failed.", error);
-    redirect("/login?message=Unable to verify password.");
+    const detail =
+      error instanceof Error && error.message ? error.message : typeof error === "string" ? error : "unknown error";
+    redirect(`/login?message=${encodeURIComponent(`Unable to verify password: ${detail}`)}`);
   }
 
   if (!valid) {
