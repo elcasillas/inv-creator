@@ -15,7 +15,9 @@ function textToBytes(value: string) {
 }
 
 function toArrayBuffer(bytes: Uint8Array) {
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
 }
 
 async function derivePasswordHash(password: string, salt: Uint8Array, iterations: number) {
