@@ -14,12 +14,16 @@ function textToBytes(value: string) {
   return new TextEncoder().encode(value);
 }
 
+function toArrayBuffer(bytes: Uint8Array) {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+}
+
 async function derivePasswordHash(password: string, salt: Uint8Array, iterations: number) {
   const key = await crypto.subtle.importKey("raw", textToBytes(password), "PBKDF2", false, ["deriveBits"]);
   const bits = await crypto.subtle.deriveBits(
     {
       name: "PBKDF2",
-      salt,
+      salt: toArrayBuffer(salt),
       iterations,
       hash: "SHA-256"
     },
