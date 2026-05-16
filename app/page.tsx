@@ -48,7 +48,16 @@ function groupInvoicesByCompany(invoices: InvoiceRow[]) {
 
 export default async function DashboardPage() {
   const envReady = await hasD1Access();
-  const invoices = envReady ? await getInvoices() : [];
+  let invoices: InvoiceRow[] = [];
+
+  if (envReady) {
+    try {
+      invoices = await getInvoices();
+    } catch (error) {
+      console.error("Failed to load invoices for dashboard.", error);
+    }
+  }
+
   const invoiceGroups = groupInvoicesByCompany(invoices);
 
   return (

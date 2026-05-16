@@ -74,23 +74,37 @@ export async function getCurrentUserWithPassword() {
     return null;
   }
 
-  const row = await queryFirst<Record<string, unknown>>(
-    `SELECT
-       app_users.id,
-       app_users.email,
-       app_users.full_name,
-       app_users.role,
-       app_users.password_hash,
-       app_users.disabled_at,
-       app_users.created_at,
-       app_users.updated_at
-     FROM user_sessions
-     JOIN app_users ON app_users.id = user_sessions.user_id
-     WHERE user_sessions.token_hash = ?
-       AND user_sessions.expires_at > ?
-     LIMIT 1`,
-    [await hashSessionToken(sessionToken), new Date().toISOString()]
-  );
+  let row: Record<string, unknown> | null = null;
+
+  try {
+    row = await queryFirst<Record<string, unknown>>(
+      `SELECT
+         app_users.id,
+         app_users.email,
+         app_users.full_name,
+         app_users.role,
+         app_users.password_hash,
+         app_users.disabled_at,
+         app_users.created_at,
+         app_users.updated_at
+       FROM user_sessions
+       JOIN app_users ON app_users.id = user_sessions.user_id
+       WHERE user_sessions.token_hash = ?
+         AND user_sessions.expires_at > ?
+       LIMIT 1`,
+      [await hashSessionToken(sessionToken), new Date().toISOString()]
+    );
+  } catch (error) {
+    console.error("Failed to load current session user.", error);
+    cookieStore.set(SESSION_COOKIE_NAME, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true,
+      path: "/",
+      maxAge: 0
+    });
+    return null;
+  }
 
   if (!row) {
     return null;
