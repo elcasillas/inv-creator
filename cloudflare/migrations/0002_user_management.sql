@@ -35,7 +35,7 @@ INSERT OR IGNORE INTO app_users (
   'ed.casillas@gmail.com',
   'Ed Casillas',
   'admin',
-  'pbkdf2_sha256$310000$msc4/nIA+KcFZoCNH9fHEA==$mPhrSPqY2rxn0c7sPWSj8G+wtpMTVyS4eOOZj0sWZA8=',
+  'pbkdf2_sha256$100000$ssc4/nIA+KcFZoCNH9fHEA==$JuzKxptcdMqSGJCy7qQ+sEou7K/uB/Qik/oRq4bwl+Q=',
   NULL,
   '2026-05-15T00:00:00.000Z',
   '2026-05-15T00:00:00.000Z'
