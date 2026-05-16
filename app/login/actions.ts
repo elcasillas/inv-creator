@@ -30,7 +30,7 @@ export async function login(formData: FormData) {
       redirect("/login?message=Invalid email or password.");
     }
 
-    await createSession(String(user.id));
+    await createSession(String(user.id), String(user.password_hash ?? ""));
     redirect("/");
   } catch (error) {
     if (isRedirectError(error)) {

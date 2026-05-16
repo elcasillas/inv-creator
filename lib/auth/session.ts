@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { executeStatement, queryFirst } from "@/lib/d1/client";
+import { queryFirst } from "@/lib/d1/client";
 import type { ProfileRow } from "@/types/profile";
 
 const SESSION_COOKIE_NAME = "inv_creator_session";
@@ -24,6 +24,19 @@ function bytesToBase64Url(bytes: Uint8Array) {
   return bytesToBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
+function base64UrlToBytes(value: string) {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return bytes;
+}
+
 function toProfileRow(row: Record<string, unknown>) {
   return {
     id: String(row.id ?? ""),
@@ -41,17 +54,56 @@ async function hashSessionToken(token: string) {
   return bytesToBase64(new Uint8Array(digest));
 }
 
-export async function createSession(userId: string) {
-  const tokenBytes = crypto.getRandomValues(new Uint8Array(32));
-  const token = bytesToBase64Url(tokenBytes);
-  const tokenHash = await hashSessionToken(token);
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + SESSION_MAX_AGE_SECONDS * 1000).toISOString();
+async function signSession(userId: string, expiresAt: number, passwordHash: string) {
+  return hashSessionToken(`${userId}.${expiresAt}.${passwordHash}`);
+}
 
-  await executeStatement(
-    "INSERT INTO user_sessions (id, user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)",
-    [crypto.randomUUID(), userId, tokenHash, expiresAt, now.toISOString()]
-  );
+function encodeSessionValue(userId: string, expiresAt: number, signature: string) {
+  return bytesToBase64Url(new TextEncoder().encode(`${userId}.${expiresAt}.${signature}`));
+}
+
+function decodeSessionValue(value: string) {
+  try {
+    const decoded = new TextDecoder().decode(base64UrlToBytes(value));
+    const [userId, expiresAtValue, signature] = decoded.split(".");
+
+    if (!userId || !expiresAtValue || !signature) {
+      return null;
+    }
+
+    const expiresAt = Number(expiresAtValue);
+
+    if (!Number.isFinite(expiresAt)) {
+      return null;
+    }
+
+    return { userId, expiresAt, signature };
+  } catch {
+    return null;
+  }
+}
+
+function constantTimeEqualStrings(left: string, right: string) {
+  const leftBytes = new TextEncoder().encode(left);
+  const rightBytes = new TextEncoder().encode(right);
+
+  if (leftBytes.length !== rightBytes.length) {
+    return false;
+  }
+
+  let diff = 0;
+
+  for (let index = 0; index < leftBytes.length; index += 1) {
+    diff |= leftBytes[index] ^ rightBytes[index];
+  }
+
+  return diff === 0;
+}
+
+export async function createSession(userId: string, passwordHash: string) {
+  const expiresAt = Date.now() + SESSION_MAX_AGE_SECONDS * 1000;
+  const signature = await signSession(userId, expiresAt, passwordHash);
+  const token = encodeSessionValue(userId, expiresAt, signature);
 
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE_NAME, token, {
@@ -65,12 +117,6 @@ export async function createSession(userId: string) {
 
 export async function deleteCurrentSession() {
   const cookieStore = await cookies();
-  const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-
-  if (sessionToken) {
-    await executeStatement("DELETE FROM user_sessions WHERE token_hash = ?", [await hashSessionToken(sessionToken)]);
-  }
-
   cookieStore.set(SESSION_COOKIE_NAME, "", {
     httpOnly: true,
     sameSite: "lax",
@@ -88,25 +134,36 @@ export async function getCurrentUserWithPassword() {
     return null;
   }
 
+  const parsedSession = decodeSessionValue(sessionToken);
+
+  if (!parsedSession || parsedSession.expiresAt <= Date.now()) {
+    cookieStore.set(SESSION_COOKIE_NAME, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true,
+      path: "/",
+      maxAge: 0
+    });
+    return null;
+  }
+
   let row: Record<string, unknown> | null = null;
 
   try {
     row = await queryFirst<Record<string, unknown>>(
       `SELECT
-         app_users.id,
-         app_users.email,
-         app_users.full_name,
-         app_users.role,
-         app_users.password_hash,
-         app_users.disabled_at,
-         app_users.created_at,
-         app_users.updated_at
-       FROM user_sessions
-       JOIN app_users ON app_users.id = user_sessions.user_id
-       WHERE user_sessions.token_hash = ?
-         AND user_sessions.expires_at > ?
+         id,
+         email,
+         full_name,
+         role,
+         password_hash,
+         disabled_at,
+         created_at,
+         updated_at
+       FROM app_users
+       WHERE id = ?
        LIMIT 1`,
-      [await hashSessionToken(sessionToken), new Date().toISOString()]
+      [parsedSession.userId]
     );
   } catch (error) {
     console.error("Failed to load current session user.", error);
@@ -121,6 +178,20 @@ export async function getCurrentUserWithPassword() {
   }
 
   if (!row) {
+    return null;
+  }
+
+  const passwordHash = String(row.password_hash ?? "");
+  const expectedSignature = await signSession(parsedSession.userId, parsedSession.expiresAt, passwordHash);
+
+  if (!constantTimeEqualStrings(parsedSession.signature, expectedSignature)) {
+    cookieStore.set(SESSION_COOKIE_NAME, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true,
+      path: "/",
+      maxAge: 0
+    });
     return null;
   }
 
