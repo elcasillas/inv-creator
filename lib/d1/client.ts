@@ -10,8 +10,12 @@ type D1RunResult<T> = {
 
 type D1PreparedStatement = {
   bind: (...params: unknown[]) => {
+    all: <T>() => Promise<D1RunResult<T>>;
+    first: <T>() => Promise<T | null>;
     run: <T>() => Promise<D1RunResult<T>>;
   };
+  all: <T>() => Promise<D1RunResult<T>>;
+  first: <T>() => Promise<T | null>;
   run: <T>() => Promise<D1RunResult<T>>;
 };
 
@@ -96,7 +100,7 @@ export async function queryRows<T>(sql: string, params: unknown[] = []) {
 
   if (db) {
     const statement = db.prepare(sql);
-    const result = params.length ? await statement.bind(...params).run<T>() : await statement.run<T>();
+    const result = params.length ? await statement.bind(...params).all<T>() : await statement.all<T>();
     return result.results ?? [];
   }
 
@@ -106,6 +110,13 @@ export async function queryRows<T>(sql: string, params: unknown[] = []) {
 }
 
 export async function queryFirst<T>(sql: string, params: unknown[] = []) {
+  const db = await getBoundD1();
+
+  if (db) {
+    const statement = db.prepare(sql);
+    return params.length ? await statement.bind(...params).first<T>() : await statement.first<T>();
+  }
+
   const rows = await queryRows<T>(sql, params);
   return rows[0] ?? null;
 }
