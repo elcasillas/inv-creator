@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const SUPPORTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/jpg"]);
+const SUPPORTED_IMAGE_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "image/svg+xml"
+]);
 
 export async function GET(request: NextRequest) {
   const sourceUrl = request.nextUrl.searchParams.get("src");
@@ -25,7 +31,7 @@ export async function GET(request: NextRequest) {
     const upstreamResponse = await fetch(parsedUrl.toString(), {
       cache: "force-cache",
       headers: {
-        Accept: "image/png,image/jpeg,image/jpg;q=0.9,*/*;q=0.1"
+        Accept: "image/png,image/jpeg,image/jpg,image/webp,image/svg+xml;q=0.9,*/*;q=0.1"
       },
       next: {
         revalidate: 3600
