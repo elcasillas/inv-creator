@@ -17,12 +17,22 @@
       "service": "inv-creator"
     }
   ],
+  "vars": {
+    "COMPANY_LOGO_PUBLIC_BASE_URL": "https://invoice.casibros.com/"
+  },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "inv-creator",
       "database_id": "6e483d82-680a-4e56-959c-abfcd0ab2bd1",
       "preview_database_id": "6e483d82-680a-4e56-959c-abfcd0ab2bd1"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "COMPANY_LOGO_BUCKET",
+      "bucket_name": "company-logos",
+      "preview_bucket_name": "company-logos"
     }
   ],
   "images": {

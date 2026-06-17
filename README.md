@@ -39,7 +39,11 @@ npm install
 CLOUDFLARE_API_TOKEN=your_cloudflare_api_token
 CLOUDFLARE_ACCOUNT_ID=54e5cb8c2066084f27e65ea99836e6a0
 CLOUDFLARE_D1_DATABASE_ID=6e483d82-680a-4e56-959c-abfcd0ab2bd1
+CLOUDFLARE_R2_PUBLIC_BASE_URL=https://pub-<your-r2-domain>
 ```
+
+For deployed Workers, the logo upload route also reads `COMPANY_LOGO_PUBLIC_BASE_URL` from
+[`wrangler.jsonc`](/mnt/f/AI/inv-creator/wrangler.jsonc:1) as a fallback.
 
 3. Apply the D1 schema migration.
 
@@ -78,8 +82,18 @@ The Worker deployment config lives in [wrangler.jsonc](/mnt/f/AI/inv-creator/wra
 
 - names the Worker `inv-creator`
 - binds the D1 database as `DB`
+- binds the company logo R2 bucket as `COMPANY_LOGO_BUCKET`
+- sets `COMPANY_LOGO_PUBLIC_BASE_URL` for the logo upload route fallback
 - configures the self-reference service binding to the same Worker name
 - points assets to `.open-next/assets`
+
+Company logos are uploaded through `POST /api/company-logo/upload`, stored in Cloudflare R2, and
+saved to the existing `companies.logo_url` field as a public object URL. The route prefers
+`COMPANY_LOGO_PUBLIC_BASE_URL` from `wrangler.jsonc`, then falls back to
+`CLOUDFLARE_R2_PUBLIC_BASE_URL` from the environment.
+
+You can also check the runtime config with `GET /api/company-logo/upload`. It returns whether the
+R2 binding and public base URL are both configured.
 
 For Cloudflare Workers Builds, use:
 

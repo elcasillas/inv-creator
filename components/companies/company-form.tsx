@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,7 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
+import {
+  COMPANY_LOGO_ALLOWED_EXTENSIONS,
+  COMPANY_LOGO_ALLOWED_MIME_TYPES,
+  COMPANY_LOGO_MAX_FILE_SIZE_BYTES
+} from "@/lib/utils/company-logo";
 import { companyDefaults, companySchema, type CompanyFormValues } from "@/lib/validation/company";
+
+type LogoUploadStatus = "idle" | "uploading" | "complete" | "failed";
 
 export function CompanyForm({
   mode,
@@ -23,10 +30,96 @@ export function CompanyForm({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [logoUploadStatus, setLogoUploadStatus] = useState<LogoUploadStatus>("idle");
+  const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string>(initialValues?.logoUrl ?? "");
+  const [logoFileName, setLogoFileName] = useState<string | null>(null);
   const form = useForm<CompanyFormValues>({
     resolver: zodResolver(companySchema),
     defaultValues: initialValues ?? companyDefaults
   });
+
+  useEffect(() => {
+    setLogoPreviewUrl(initialValues?.logoUrl ?? "");
+    setLogoFileName(null);
+    setLogoUploadStatus("idle");
+    setLogoUploadError(null);
+  }, [initialValues?.logoUrl]);
+
+  async function uploadLogoFile(file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    if (mode === "edit" && companyId) {
+      formData.append("companyId", companyId);
+    }
+
+    const response = await fetch("/api/company-logo/upload", {
+      method: "POST",
+      body: formData
+    });
+
+    if (!response.ok) {
+      let message = "Upload failed.";
+
+      try {
+        const body = (await response.json()) as { message?: string };
+        message = body.message ?? message;
+      } catch {
+        message = await response.text();
+      }
+
+      throw new Error(message);
+    }
+
+    return (await response.json()) as { logoUrl: string };
+  }
+
+  async function handleLogoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget;
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    setLogoUploadError(null);
+    setLogoUploadStatus("idle");
+
+    const normalizedType = file.type.toLowerCase();
+    const hasAllowedType =
+      COMPANY_LOGO_ALLOWED_MIME_TYPES.includes(normalizedType as (typeof COMPANY_LOGO_ALLOWED_MIME_TYPES)[number]) ||
+      COMPANY_LOGO_ALLOWED_EXTENSIONS.some((extension) => file.name.toLowerCase().endsWith(extension));
+
+    if (!hasAllowedType) {
+      setLogoUploadStatus("failed");
+      setLogoUploadError("Use PNG, JPG, WEBP, or SVG files.");
+      input.value = "";
+      return;
+    }
+
+    if (file.size > COMPANY_LOGO_MAX_FILE_SIZE_BYTES) {
+      setLogoUploadStatus("failed");
+      setLogoUploadError("Company logos must be 5 MB or smaller.");
+      input.value = "";
+      return;
+    }
+
+    setLogoUploadStatus("uploading");
+
+    try {
+      const result = await uploadLogoFile(file);
+      setLogoPreviewUrl(result.logoUrl);
+      setLogoFileName(file.name);
+      form.setValue("logoUrl", result.logoUrl, { shouldDirty: true, shouldValidate: true });
+      setLogoUploadStatus("complete");
+    } catch (error) {
+      setLogoUploadStatus("failed");
+      setLogoUploadError(error instanceof Error ? error.message : "Upload failed.");
+    } finally {
+      input.value = "";
+    }
+  }
 
   const onSubmit = form.handleSubmit((values) => {
     startTransition(async () => {
@@ -101,8 +194,48 @@ export function CompanyForm({
           <FormField label="Tax ID / VAT" error={form.formState.errors.taxId?.message}>
             <Input {...form.register("taxId")} placeholder="VAT-12345" />
           </FormField>
-          <FormField label="Logo URL" error={form.formState.errors.logoUrl?.message}>
-            <Input {...form.register("logoUrl")} placeholder="https://example.com/logo.png" />
+          <FormField
+            label="Company Logo"
+            error={logoUploadError ?? form.formState.errors.logoUrl?.message}
+            className="md:col-span-2"
+          >
+            <div className="space-y-4 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <p className="text-sm text-slate-600">
+                      Upload a logo image for this company. PNG, JPG, WEBP, or SVG preferred.
+                    </p>
+                    <p className="text-xs text-slate-500">Max size: 5 MB.</p>
+                  </div>
+                  <Input
+                    type="file"
+                    accept={`${COMPANY_LOGO_ALLOWED_EXTENSIONS.join(",")},${COMPANY_LOGO_ALLOWED_MIME_TYPES.join(",")}`}
+                    onChange={handleLogoChange}
+                    disabled={logoUploadStatus === "uploading" || isPending}
+                    className="max-w-md"
+                  />
+                  <div className="space-y-1 text-xs text-slate-500">
+                    {logoUploadStatus === "uploading" ? <p>Uploading...</p> : null}
+                    {logoUploadStatus === "complete" ? <p>Upload complete.</p> : null}
+                    {logoUploadStatus === "failed" && !logoUploadError ? <p>Upload failed.</p> : null}
+                    {logoFileName ? <p>Last uploaded: {logoFileName}</p> : null}
+                  </div>
+                </div>
+
+                <div className="flex min-h-24 w-full max-w-40 items-center justify-center rounded-xl border border-slate-200 bg-white p-3 sm:w-40">
+                  {logoPreviewUrl ? (
+                    <img
+                      src={logoPreviewUrl}
+                      alt="Company logo preview"
+                      className="max-h-16 w-auto object-contain"
+                    />
+                  ) : (
+                    <p className="text-center text-xs text-slate-400">No logo uploaded yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
           </FormField>
           <FormField label="Address" error={form.formState.errors.address?.message} className="md:col-span-2">
             <Input {...form.register("address")} placeholder="123 Main Street" />
@@ -124,7 +257,7 @@ export function CompanyForm({
 
       <div className="flex items-center justify-between gap-4">
         {submitError ? <p className="text-sm text-rose-600">{submitError}</p> : <div />}
-        <Button type="submit" variant="primary" disabled={isPending}>
+        <Button type="submit" variant="primary" disabled={isPending || logoUploadStatus === "uploading"}>
           {isPending ? "Saving..." : mode === "create" ? "Save Company" : "Update Company"}
         </Button>
       </div>
