@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input";
 import {
   COMPANY_LOGO_ALLOWED_EXTENSIONS,
   COMPANY_LOGO_ALLOWED_MIME_TYPES,
-  COMPANY_LOGO_MAX_FILE_SIZE_BYTES
+  COMPANY_LOGO_MAX_FILE_SIZE_BYTES,
+  getCompanyLogoSrc
 } from "@/lib/utils/company-logo";
 import { companyDefaults, companySchema, type CompanyFormValues } from "@/lib/validation/company";
 
@@ -32,19 +33,36 @@ export function CompanyForm({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [logoUploadStatus, setLogoUploadStatus] = useState<LogoUploadStatus>("idle");
   const [logoUploadError, setLogoUploadError] = useState<string | null>(null);
-  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string>(initialValues?.logoUrl ?? "");
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string>(
+    getCompanyLogoSrc(initialValues?.logoUrl) ?? initialValues?.logoUrl ?? ""
+  );
   const [logoFileName, setLogoFileName] = useState<string | null>(null);
+  const [selectedLogoObjectUrl, setSelectedLogoObjectUrl] = useState<string | null>(null);
+  const [logoPreviewLoadError, setLogoPreviewLoadError] = useState<string | null>(null);
   const form = useForm<CompanyFormValues>({
     resolver: zodResolver(companySchema),
     defaultValues: initialValues ?? companyDefaults
   });
 
   useEffect(() => {
-    setLogoPreviewUrl(initialValues?.logoUrl ?? "");
+    if (selectedLogoObjectUrl) {
+      URL.revokeObjectURL(selectedLogoObjectUrl);
+      setSelectedLogoObjectUrl(null);
+    }
+    setLogoPreviewUrl(getCompanyLogoSrc(initialValues?.logoUrl) ?? initialValues?.logoUrl ?? "");
     setLogoFileName(null);
     setLogoUploadStatus("idle");
     setLogoUploadError(null);
+    setLogoPreviewLoadError(null);
   }, [initialValues?.logoUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (selectedLogoObjectUrl) {
+        URL.revokeObjectURL(selectedLogoObjectUrl);
+      }
+    };
+  }, [selectedLogoObjectUrl]);
 
   async function uploadLogoFile(file: File) {
     const formData = new FormData();
@@ -84,6 +102,7 @@ export function CompanyForm({
     }
 
     setLogoUploadError(null);
+    setLogoPreviewLoadError(null);
     setLogoUploadStatus("idle");
 
     const normalizedType = file.type.toLowerCase();
@@ -105,11 +124,13 @@ export function CompanyForm({
       return;
     }
 
+    const objectUrl = URL.createObjectURL(file);
+    setSelectedLogoObjectUrl(objectUrl);
+    setLogoPreviewUrl(objectUrl);
     setLogoUploadStatus("uploading");
 
     try {
       const result = await uploadLogoFile(file);
-      setLogoPreviewUrl(result.logoUrl);
       setLogoFileName(file.name);
       form.setValue("logoUrl", result.logoUrl, { shouldDirty: true, shouldValidate: true });
       setLogoUploadStatus("complete");
@@ -118,6 +139,17 @@ export function CompanyForm({
       setLogoUploadError(error instanceof Error ? error.message : "Upload failed.");
     } finally {
       input.value = "";
+    }
+  }
+
+  function handleLogoPreviewError() {
+    if (logoPreviewUrl && selectedLogoObjectUrl) {
+      setLogoPreviewLoadError("The uploaded file could not be rendered in the browser preview.");
+      return;
+    }
+
+    if (logoPreviewUrl) {
+      setLogoPreviewLoadError("The saved company logo URL could not be loaded.");
     }
   }
 
@@ -225,11 +257,19 @@ export function CompanyForm({
 
                 <div className="flex min-h-24 w-full max-w-40 items-center justify-center rounded-xl border border-slate-200 bg-white p-3 sm:w-40">
                   {logoPreviewUrl ? (
-                    <img
-                      src={logoPreviewUrl}
-                      alt="Company logo preview"
-                      className="max-h-16 w-auto object-contain"
-                    />
+                    <div className="flex flex-col items-center gap-2">
+                      <img
+                        src={logoPreviewUrl}
+                        alt="Company logo preview"
+                        className="max-h-16 w-auto object-contain"
+                        onError={handleLogoPreviewError}
+                      />
+                      {logoPreviewLoadError ? (
+                        <p className="text-center text-[11px] leading-4 text-rose-600">
+                          {logoPreviewLoadError}
+                        </p>
+                      ) : null}
+                    </div>
                   ) : (
                     <p className="text-center text-xs text-slate-400">No logo uploaded yet.</p>
                   )}

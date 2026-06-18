@@ -1,5 +1,22 @@
 import { z } from "zod";
 
+function isValidCompanyLogoValue(value: string) {
+  if (!value) {
+    return true;
+  }
+
+  if (value.startsWith("/api/company-logo/object/")) {
+    return true;
+  }
+
+  try {
+    const parsedUrl = new URL(value);
+    return ["http:", "https:"].includes(parsedUrl.protocol);
+  } catch {
+    return false;
+  }
+}
+
 export const companySchema = z.object({
   name: z.string().trim().min(1, "Company name is required"),
   invoiceStartNumber: z.coerce
@@ -15,7 +32,12 @@ export const companySchema = z.object({
   phone: z.string().trim().optional().or(z.literal("")),
   website: z.string().trim().url("Enter a valid URL").optional().or(z.literal("")),
   taxId: z.string().trim().optional().or(z.literal("")),
-  logoUrl: z.string().trim().url("Enter a valid URL").optional().or(z.literal(""))
+  logoUrl: z
+    .string()
+    .trim()
+    .refine(isValidCompanyLogoValue, "Enter a valid URL")
+    .optional()
+    .or(z.literal(""))
 });
 
 export type CompanyFormValues = z.infer<typeof companySchema>;

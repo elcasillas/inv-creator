@@ -32,7 +32,8 @@
     {
       "binding": "COMPANY_LOGO_BUCKET",
       "bucket_name": "company-logos",
-      "preview_bucket_name": "company-logos"
+      "preview_bucket_name": "company-logos",
+      "remote": true
     }
   ],
   "images": {

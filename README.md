@@ -39,11 +39,21 @@ npm install
 CLOUDFLARE_API_TOKEN=your_cloudflare_api_token
 CLOUDFLARE_ACCOUNT_ID=54e5cb8c2066084f27e65ea99836e6a0
 CLOUDFLARE_D1_DATABASE_ID=6e483d82-680a-4e56-959c-abfcd0ab2bd1
+CLOUDFLARE_R2_ACCESS_KEY_ID=your_r2_access_key_id
+CLOUDFLARE_R2_SECRET_ACCESS_KEY=your_r2_secret_access_key
+CLOUDFLARE_R2_BUCKET_NAME=company-logos
 CLOUDFLARE_R2_PUBLIC_BASE_URL=https://pub-<your-r2-domain>
 ```
 
 For deployed Workers, the logo upload route also reads `COMPANY_LOGO_PUBLIC_BASE_URL` from
 [`wrangler.jsonc`](/mnt/f/AI/inv-creator/wrangler.jsonc:1) as a fallback.
+
+If that public base URL is missing or points back to the app host, uploads still go to R2 and the
+app falls back to an internal `/api/company-logo/object/...` URL so company and invoice previews
+keep working.
+
+For localhost, real R2 uploads and reads use the S3-compatible API when
+`CLOUDFLARE_R2_ACCESS_KEY_ID` and `CLOUDFLARE_R2_SECRET_ACCESS_KEY` are set.
 
 3. Apply the D1 schema migration.
 
@@ -90,7 +100,10 @@ The Worker deployment config lives in [wrangler.jsonc](/mnt/f/AI/inv-creator/wra
 Company logos are uploaded through `POST /api/company-logo/upload`, stored in Cloudflare R2, and
 saved to the existing `companies.logo_url` field as a public object URL. The route prefers
 `COMPANY_LOGO_PUBLIC_BASE_URL` from `wrangler.jsonc`, then falls back to
-`CLOUDFLARE_R2_PUBLIC_BASE_URL` from the environment.
+`CLOUDFLARE_R2_PUBLIC_BASE_URL` from the environment. When neither points at a valid R2 public
+host, the route stores an app-local object URL backed directly by the R2 bucket. In localhost, if
+the R2 access key env vars are present, uploads and object reads go directly to the real R2 bucket
+through the S3-compatible API instead of relying on Wrangler preview bindings.
 
 You can also check the runtime config with `GET /api/company-logo/upload`. It returns whether the
 R2 binding and public base URL are both configured.
@@ -107,6 +120,25 @@ npm run preview
 npm run deploy
 npm run upload
 ```
+
+## GitHub Deploy
+
+GitHub Actions can deploy this Worker automatically on pushes to `main` through
+[deploy-cloudflare.yml](/mnt/f/ai/inv-creator/.github/workflows/deploy-cloudflare.yml).
+
+Set these repository secrets in GitHub before enabling the workflow:
+
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+
+The workflow:
+
+- installs dependencies with `npm ci`
+- runs `npm run typecheck`
+- runs `npm run deploy`
+
+If you want production deploys from a branch other than `main`, update the `on.push.branches` list
+in [deploy-cloudflare.yml](/mnt/f/ai/inv-creator/.github/workflows/deploy-cloudflare.yml).
 
 The expected production URL for this deployment path is the Worker URL:
 

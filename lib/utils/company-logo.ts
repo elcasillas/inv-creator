@@ -39,6 +39,10 @@ export function getCompanyLogoSrc(logoUrl: string | null | undefined) {
     return logoUrl;
   }
 
+  if (logoUrl.startsWith("/api/company-logo/object/")) {
+    return logoUrl;
+  }
+
   try {
     const parsedUrl = new URL(logoUrl);
 
